@@ -30,18 +30,30 @@ class BiometricAuthActivity : FragmentActivity() {
         // 初始化 BiometricPrompt
         biometricPrompt = BiometricPrompt(this, executor, authenticationCallback)
 
-        promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("生物识别认证")
-            .setSubtitle("请验证您的身份")
-            .setNegativeButtonText("取消")
-            .build()
     }
 
     override fun onResume() {
         super.onResume()
-        Handler(Looper.getMainLooper()).postDelayed({
-            biometricPrompt.authenticate(promptInfo)
-        }, 50)
+        val open = intent.getBooleanExtra("open", false)
+        val rmb = intent.getIntExtra("rmb",0)
+        Log.i("mihuashihook", "钱$rmb")
+        Log.i("mihuashihook", "钱$open")
+        // 判断是否传递过来数据
+        if (open) {
+            // 如果rmb不为null，表示有数据传递过来
+            val promptInfo: BiometricPrompt.PromptInfo = getPromptInfo(
+                title = "您将支付 $rmb 元",
+                subtitle = "请验证您的身份"
+            )
+            Handler(Looper.getMainLooper()).postDelayed({
+                biometricPrompt.authenticate(promptInfo)
+            }, 50)
+        } else {
+            val promptInfo: BiometricPrompt.PromptInfo = getPromptInfo()
+            Handler(Looper.getMainLooper()).postDelayed({
+                biometricPrompt.authenticate(promptInfo)
+            }, 50)
+        }
     }
 
     private val authenticationCallback = object : BiometricPrompt.AuthenticationCallback() {
@@ -110,5 +122,17 @@ class BiometricAuthActivity : FragmentActivity() {
             sendBroadcast(resultIntent) // 发送广播
             finish()
         }
+    }
+    // 封装函数，根据条件返回不同的 PromptInfo
+    fun getPromptInfo(
+        title: String = "生物识别认证",
+        subtitle: String = "请验证您的身份",
+        negativeButtonText: String = "取消"
+    ): BiometricPrompt.PromptInfo {
+        return BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setNegativeButtonText(negativeButtonText)
+            .build()
     }
 }

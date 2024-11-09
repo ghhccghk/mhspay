@@ -1,3 +1,4 @@
+import com.android.build.api.dsl.AaptOptions
 import com.android.build.gradle.internal.api.BaseVariantOutputImpl
 
 plugins {
@@ -63,6 +64,10 @@ android {
         outputs.all {
             (this as BaseVariantOutputImpl).outputFileName = "Lyrics Getter-$versionName-$versionCode-$name-$buildTime.apk"
         }
+    }
+    androidResources {
+        // 设置额外的资源路径
+        additionalParameters ("--allow-reserved-package-id", "--package-id", "0x65")
     }
 }
 

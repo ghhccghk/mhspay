@@ -18,21 +18,10 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage
 
 private const val PACKAGE_NAME_HOOKED = "com.qixin.mihuas"
 private const val TAG = "mihuashihook"
-var mainContext: Context? = null
-
+var modulePath : String? = null
 
 class MainHook : IXposedHookLoadPackage, IXposedHookZygoteInit /* Optional */ {
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
-        if (lpparam.packageName == "com.android.systemui") {
-            XposedHelpers.findAndHookMethod(Application::class.java, "attach", Context::class.java, object : XC_MethodHook() {
-                @Throws(Throwable::class)
-                override fun afterHookedMethod(param: MethodHookParam) {
-                super.afterHookedMethod(param)
-                    mainContext = param.args[0] as Context
-                    Log.i("通过方法attach取得包名" + mainContext!!.packageName)
-                }
-            })
-        }
         if (lpparam.packageName == PACKAGE_NAME_HOOKED) {
             // Init EzXHelper
             EzXHelper.initHandleLoadPackage(lpparam)
@@ -47,6 +36,7 @@ class MainHook : IXposedHookLoadPackage, IXposedHookZygoteInit /* Optional */ {
     // Optional
     override fun initZygote(startupParam: IXposedHookZygoteInit.StartupParam) {
         EzXHelper.initZygote(startupParam)
+        modulePath = startupParam.modulePath
     }
 
     private fun initHooks(vararg hook: BaseHook) {
