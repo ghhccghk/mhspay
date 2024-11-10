@@ -1,18 +1,23 @@
 package com.mihuashi.paybyfinger.hook
 
+
+import android.R
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.res.XModuleResources
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Parcelable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import cn.xiaowine.xkt.Tool.isNotNull
@@ -21,7 +26,6 @@ import com.github.kyuubiran.ezxhelper.ClassUtils.loadClassOrNull
 import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createHook
 import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinder
-import com.mihuashi.paybyfinger.R
 import com.mihuashi.paybyfinger.modulePath
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
@@ -162,7 +166,9 @@ object Hook : BaseHook() {
                 Log.i("rootview 为 ${rootView.accessibilityClassName}")
                 // 使用反射加载 MineSettingItemView 类
                 val mineSettingItemViewClass = findClass("com.qixin.mihuas.module.main.mine.widget.MineSettingItemView", classLoader)
-                val itemView = rootView.findViewById<ViewGroup>(0x7f090ee3) as ViewGroup
+                val itemView = rootView.findViewById<ViewGroup>(0x7f090edd) as FrameLayout
+
+
                 // 检查 rootView 的类型，如果是 FrameLayout，可以添加新的视图
                 if (rootView is FrameLayout) {
                     // 获取当前 Fragment 的 Context
@@ -175,23 +181,47 @@ object Hook : BaseHook() {
                         // 创建 MineSettingItemView 实例，传入 Context
                         val newItemView = XposedHelpers.newInstance(mineSettingItemViewClass, context) as View
 
+
                         // 设置 label 和 icon
                         XposedHelpers.setObjectField(newItemView, "label", "指纹认证")
                         XposedHelpers.setIntField(newItemView, "iconRes", 0x7f080993)
                         //XposedHelpers.setIntField(newItemView, "id", 0x7f090edc)
-                        //XposedHelpers.callMethod(newItemView, "setCornerSide",0x7f080993)
+                        XposedHelpers.callMethod(newItemView, "setCornerSide",1)
                         XposedHelpers.callMethod(newItemView, "componentInitialize")
 
-                        // 设置布局参数
-                        newItemView.layoutParams = FrameLayout.LayoutParams(
+                        // 设置布局参数，避免重叠，使用WRAP_CONTENT
+                        val layoutParams = FrameLayout.LayoutParams(
                             FrameLayout.LayoutParams.MATCH_PARENT,
                             FrameLayout.LayoutParams.WRAP_CONTENT
                         )
-                        //val views: ArrayList<View> = ArrayList()  // 创建一个空的 ArrayList，包含 View 类型的元素
-                        //views.add(newItemView)
-                        // 将新项添加到布局中
-                        //rootView.addView(newItemView)
-                        itemView.addView(newItemView)
+                        newItemView.id = 0x7f090edf// 使用资源 ID
+                        newItemView.layoutParams = layoutParams
+
+                        newItemView.setOnClickListener {
+                            val cll = loadClass("com.qixin.mihuas.base.provider.ContainerActivity")
+                            val intent = Intent(context, cll)
+                            val containerArgsClass = findClass("com.qixin.mihuas.router.params.ContainerArgs", classLoader)
+                            val containerArgs = XposedHelpers.newInstance(containerArgsClass,"指纹认证", "com.qixin.mihuas.module.setting.privacy.fragment.PrivacySettingFragment", null, false) as Parcelable?
+
+                            val bundle = Bundle()
+                            bundle.putParcelable("args", containerArgs)  // 将 ContainerArgs 放入 Bundle
+                            intent.putExtras(bundle)
+                            context.startActivity(intent)
+                            loadClass("com.qixin.mihuas.base.provider.ContainerActivity").methodFinder().first{ name == "initViews" }.createHook {
+                                after{
+                                    val Activity = it.thisObject as Activity
+                                    val root = (Activity.findViewById<ViewGroup>(R.id.content)!!).getChildAt(0) as View
+                                    logAllViews(root)
+                                    Log.i("名称 $Activity")
+                                }
+                            }
+                        }
+
+
+                        val parentGroup = findParentByChild(itemView) as LinearLayout
+                        // 添加新视图
+                        //linearLayout.addView(newItemView)
+                        parentGroup.addView(newItemView)
                         //logAllViews(rootView)
                     }
                 }
@@ -205,6 +235,16 @@ object Hook : BaseHook() {
             Log.e("Xposed 获取 rootView 字段时发生错误: ${e.message}")
         }
     }
+    fun findParentByChild(view: View): ViewGroup? {
+        var parent = view.parent
+        while (parent != null && parent !is LinearLayout) {
+            parent = parent.parent
+        }
+        return parent as? LinearLayout
+    }
+
+
+
     fun logAllViews(view: View) {
         // 输出当前视图的信息
         Log.i("View: ${view.javaClass.simpleName}, ID: ${view.id}, Tag: ${view.tag}")
