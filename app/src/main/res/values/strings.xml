@@ -1,4 +1,22 @@
 <resources>
     <string name="app_name">My Application</string>
     <string name="xposed_desc">EzXHelper My Application</string>
+    <string name="home_fragment_label">Home</string>
+    <string name="version_name_label">Module Version</string>
+    <string name="version_code_label">Module Version Number</string>
+    <string name="version_type_label">Module Release Version</string>
+    <string name="settings_fragment_label">Settings</string>
+    <string name="app_rules_fragment_label">Supported APP</string>
+    <string name="activated">Activated</string>
+    <string name="unactivated">Not Activated</string>
+    <string name="build_time_label">Build Time</string>
+    <string name="unactivated_summary">Click to restart the software</string>
+    <string name="welcome">Welcome to use</string>
+    <string name="restart">Restart</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="version_differences">The release version will not output logs, and the Debug version will output logs, so it is recommended not to install the Debug version</string>
+    <string name="fingerprint_test">Fingerprint Test</string>
+    <string name="device_label">Device Information</string>
+    <string name="about_app">About App</string>
 </resources>

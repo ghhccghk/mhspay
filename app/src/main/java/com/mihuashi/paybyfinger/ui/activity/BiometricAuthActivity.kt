@@ -1,6 +1,8 @@
 package com.mihuashi.paybyfinger.ui.activity
 
 import android.app.Activity
+import android.app.ActivityManager
+import android.app.ActivityManager.AppTask
 import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
@@ -10,23 +12,21 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.biometric.BiometricPrompt
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import com.mihuashi.paybyfinger.service.FingerprintService
+import com.mihuashi.paybyfinger.BuildConfig
+import com.mihuashi.paybyfinger.hook.HookTool.Companion.convertTimestampToTime
 import java.util.concurrent.Executor
+
 
 class BiometricAuthActivity : FragmentActivity() {
 
     private lateinit var biometricPrompt: BiometricPrompt
-    private lateinit var promptInfo: BiometricPrompt.PromptInfo
     private val resultIntent = Intent()
-
+    var paytime :String = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val executor: Executor = ContextCompat.getMainExecutor(this)
-
         // 初始化 BiometricPrompt
         biometricPrompt = BiometricPrompt(this, executor, authenticationCallback)
 
@@ -36,23 +36,29 @@ class BiometricAuthActivity : FragmentActivity() {
         super.onResume()
         val open = intent.getBooleanExtra("open", false)
         val rmb = intent.getIntExtra("rmb",0)
-        Log.i("mihuashihook", "钱$rmb")
-        Log.i("mihuashihook", "钱$open")
+        paytime = intent.getStringExtra("paytime").toString()
+        if (BuildConfig.DEBUG) {
+            Log.i("mihuashihook", "钱$rmb")
+            Log.i("mihuashihook", "钱$open")
+        }
+        val systemService = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+        val appTasks: List<AppTask> = systemService.getAppTasks()
+        appTasks.get(0).setExcludeFromRecents(true);//设置activity是否隐藏
         // 判断是否传递过来数据
         if (open) {
             // 如果rmb不为null，表示有数据传递过来
             val promptInfo: BiometricPrompt.PromptInfo = getPromptInfo(
                 title = "您将支付 $rmb 元",
-                subtitle = "请验证您的身份"
+                subtitle = "请验证您的身份, 请求时间为${convertTimestampToTime(paytime.toLong())}"
             )
             Handler(Looper.getMainLooper()).postDelayed({
                 biometricPrompt.authenticate(promptInfo)
-            }, 50)
+            }, 5)
         } else {
             val promptInfo: BiometricPrompt.PromptInfo = getPromptInfo()
             Handler(Looper.getMainLooper()).postDelayed({
                 biometricPrompt.authenticate(promptInfo)
-            }, 50)
+            }, 5)
         }
     }
 
@@ -63,6 +69,8 @@ class BiometricAuthActivity : FragmentActivity() {
             val values = ContentValues().apply {
                 put("result", true)
                 put("timestamp", System.currentTimeMillis()) // 保存认证时间戳
+                put("paytime", paytime) // 回传启动时间校验
+
             }
             contentResolver.insert(Uri.parse("content://com.mihuashi.paybyfinger.provider/results"), values)
             resultIntent.putExtra("result", false)
@@ -72,6 +80,7 @@ class BiometricAuthActivity : FragmentActivity() {
                 putExtra("result", true)
                 putExtra("error_message", "null")
                 putExtra("timestamp", System.currentTimeMillis())
+                putExtra("paytime", paytime) // 回传启动时间校验
             }
             sendBroadcast(resultIntent) // 发送广播
             finish()
@@ -79,13 +88,12 @@ class BiometricAuthActivity : FragmentActivity() {
 
         override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
             // 认证错误
-            Log.e("BiometricAuthActivity", "Authentication error: $errString")
-            Log.e("BiometricAuthActivity", "Authentication error code: $errorCode")
-            //Toast.makeText(this@BiometricAuthActivity, "认证错误: $errString", Toast.LENGTH_SHORT).show()
+            Log.e("BiometricAuthActivity", "Authentication error: $errString code: $errorCode")
             val values = ContentValues().apply {
                 put("result", false)
                 put("error_message", errString.toString()) // 保存错误信息
                 put("timestamp", System.currentTimeMillis()) // 保存认证时间戳
+                put("paytime", paytime) // 回传启动时间校验
             }
             contentResolver.insert(Uri.parse("content://com.mihuashi.paybyfinger.provider/results"), values)
             resultIntent.putExtra("result", false)
@@ -97,6 +105,7 @@ class BiometricAuthActivity : FragmentActivity() {
                 putExtra("result", false)
                 putExtra("error_message", errString.toString())
                 putExtra("timestamp", System.currentTimeMillis())
+                putExtra("paytime", paytime) // 回传启动时间校验
             }
             sendBroadcast(resultIntent) // 发送广播
             finish()
@@ -109,6 +118,7 @@ class BiometricAuthActivity : FragmentActivity() {
                 put("result", false)
                 put("error_message", "认证失败") // 保存错误信息
                 put("timestamp", System.currentTimeMillis()) // 保存认证时间戳
+                put("paytime", paytime) // 回传启动时间校验
             }
             contentResolver.insert(Uri.parse("content://com.mihuashi.paybyfinger.provider/results"), values)
             setResult(Activity.RESULT_CANCELED)
@@ -118,6 +128,7 @@ class BiometricAuthActivity : FragmentActivity() {
                 putExtra("result", false)
                 putExtra("error_message", "未知错误")
                 putExtra("timestamp", System.currentTimeMillis())
+                putExtra("paytime", paytime) // 回传启动时间校验
             }
             sendBroadcast(resultIntent) // 发送广播
             finish()

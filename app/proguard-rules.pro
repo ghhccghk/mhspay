@@ -21,4 +21,3 @@
 #-renamesourcefileattribute SourceFile
 
 -keep class com.mihuashi.paybyfinger.MainHook
--keep class com.mihuashi.paybyfinger.service.FingerprintService

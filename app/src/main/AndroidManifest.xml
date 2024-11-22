@@ -22,20 +22,18 @@
             android:theme="@style/Theme.MyApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
             android:name=".ui.activity.BiometricAuthActivity"
+            android:exported="true"
             android:theme="@style/Theme.Transparent">
         </activity>
-        <service android:name=".service.FingerprintService" android:exported="true" />
         <provider
             android:name=".receiver.ResultContentProvider"
             android:authorities="com.mihuashi.paybyfinger.provider"
             android:exported="true"/>
-
         <meta-data
             android:name="xposeddescription"
             android:value="@string/xposed_desc" />

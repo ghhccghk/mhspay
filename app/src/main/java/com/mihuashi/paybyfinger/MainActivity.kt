@@ -1,97 +1,42 @@
 package com.mihuashi.paybyfinger
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
 import android.os.Bundle
-import android.os.IBinder
-import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import com.github.kyuubiran.ezxhelper.EzXHelper
-import com.github.kyuubiran.ezxhelper.Log
+import androidx.navigation.findNavController
+import androidx.navigation.ui.setupWithNavController
+import cn.xiaowine.dsp.DSP
+import cn.xiaowine.dsp.data.MODE
+import com.google.android.material.navigation.NavigationBarView
 import com.mihuashi.paybyfinger.databinding.ActivityMainBinding
-import com.mihuashi.paybyfinger.service.FingerprintService
-import com.mihuashi.paybyfinger.ui.theme.MyApplicationTheme
+import com.mihuashi.paybyfinger.tools.Tools.xpActivation
+import com.mihuashi.paybyfinger.ui.viewmodel.ShareViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
-    private var fingerprintService: FingerprintService? = null
     private var isBound = false
     private val TAG = "mihuashihook"
-
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName, service: IBinder) {
-            val binder = service as FingerprintService.FingerprintBinder
-            EzXHelper.setLogTag(TAG)
-            EzXHelper.setToastTag(TAG)
-            fingerprintService = binder.service
-            isBound = true
-        }
-
-        override fun onServiceDisconnected(name: ComponentName) {
-            fingerprintService = null
-            isBound = false
-        }
-    }
+    private val shareViewModel: ShareViewModel by viewModels()
+    private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // 绑定服务
-        val intent = Intent(this, FingerprintService::class.java)
-        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-        setContent {
-            MyApplicationTheme { // 使用你自定义的主题
-                MainScreen()
-            }
-        }
+        xpActivation = DSP.init(this, BuildConfig.APPLICATION_ID, MODE.HOOK, false)
+        shareViewModel.activated = xpActivation
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        if (isBound) {
-            unbindService(serviceConnection)
-            isBound = false
-        }
+
+    override fun onStart() {
+        super.onStart()
+        (binding.nav as NavigationBarView).setupWithNavController(findNavController(R.id.nav_host_fragment))
     }
 
-    private fun startAuthentication(context: Context) {
-        if (isBound && fingerprintService != null) {
-            fingerprintService?.startBiometricAuthentication(object : FingerprintService.AuthenticationCallback {
-                override fun onAuthenticationSuccess() {
-                    Log.i("认证成功")
-                    Toast.makeText(context, "认证成功了", Toast.LENGTH_SHORT).show()
-
-                }
-
-                override fun onAuthenticationFailure(error: String) {
-                    Log.i("认证失败")
-                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
-                }
-            })
-        }
-    }
-
-    @Composable
-    fun MainScreen() {
-        // 创建按钮
-        val context = LocalContext.current
-        Button(
-            onClick = { startAuthentication(context) },
-            modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center) // 居中显示按钮
-        ) {
-            Text(text = "开始认证")
-        }
+    override fun onSupportNavigateUp(): Boolean {
+        val navController = findNavController(R.id.nav_host_fragment)
+        return navController.navigateUp() || super.onSupportNavigateUp()
     }
 }

@@ -82,6 +82,11 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.material)
+    implementation(libs.androidx.navigation.fragment)
+    implementation(libs.androidx.navigation.ui.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -94,4 +99,6 @@ dependencies {
     implementation(libs.xkt)
     implementation(libs.dsp)
     implementation(libs.androidx.biometric.ktx)
+    implementation(libs.cardSlider)
+    implementation(libs.modernandroidpreferences)
 }
