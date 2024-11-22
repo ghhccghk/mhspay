@@ -62,7 +62,7 @@ android {
     kotlin.jvmToolchain(21)
     applicationVariants.all {
         outputs.all {
-            (this as BaseVariantOutputImpl).outputFileName = "Lyrics Getter-$versionName-$versionCode-$name-$buildTime.apk"
+            (this as BaseVariantOutputImpl).outputFileName = "Mhs Pay-$versionName-$versionCode-$name-$buildTime.apk"
         }
     }
     androidResources {
