@@ -15,7 +15,7 @@ android {
         minSdk = 28
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         dependenciesInfo.includeInApk = false
         ndk.abiFilters += arrayOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
@@ -62,7 +62,7 @@ android {
     kotlin.jvmToolchain(21)
     applicationVariants.all {
         outputs.all {
-            (this as BaseVariantOutputImpl).outputFileName = "Mhs Pay-$versionName-$versionCode-$name-$buildTime.apk"
+            (this as BaseVariantOutputImpl).outputFileName = "Rice Painter Fingerprint Pay-$versionName-$versionCode-$name-$buildTime.apk"
         }
     }
     androidResources {
@@ -72,7 +72,7 @@ android {
 }
 
 dependencies {
-    implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.4")
+    implementation(libs.shadow.gradle.plugin)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.navigation.fragment)
     implementation(libs.androidx.navigation.ui.ktx)
+    implementation(libs.firebase.database.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

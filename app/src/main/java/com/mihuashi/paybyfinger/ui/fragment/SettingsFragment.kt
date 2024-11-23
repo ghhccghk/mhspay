@@ -51,7 +51,8 @@ class SettingsFragment : Fragment() {
             accentButtonPref("open_about_app_button") {
                 titleRes = R.string.about_app
                 onClick {
-                    Toast.makeText(context,"界面还没写",Toast.LENGTH_SHORT).show()
+                    val intent = Intent(context, AboutFragment::class.java)
+                    startActivity(intent)
                     false
                 }
             }
@@ -66,4 +67,5 @@ class SettingsFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+
 }

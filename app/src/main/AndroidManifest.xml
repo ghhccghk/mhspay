@@ -30,6 +30,11 @@
             android:exported="true"
             android:theme="@style/Theme.Transparent">
         </activity>
+        <activity
+            android:name=".ui.fragment.AboutFragment"
+            android:theme="@style/Theme.MyApplication">
+        </activity>
+
         <provider
             android:name=".receiver.ResultContentProvider"
             android:authorities="com.mihuashi.paybyfinger.provider"

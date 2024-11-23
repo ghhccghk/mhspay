@@ -1,12 +1,11 @@
 <resources>
     <string name="app_name">米画师支付模块</string>
-    <string name="xposed_desc">提供米画师支付支付支持</string>
+    <string name="xposed_desc">提供米画师指纹支付支持</string>
     <string name="home_fragment_label">主页</string>
     <string name="version_name_label">模块版本</string>
     <string name="version_code_label">模块版本号</string>
     <string name="version_type_label">模块发行版本</string>
     <string name="settings_fragment_label">设置</string>
-    <string name="app_rules_fragment_label">支持应用</string>
     <string name="activated">已激活</string>
     <string name="unactivated">未激活</string>
     <string name="unactivated_summary">点此重启软件</string>
@@ -19,4 +18,5 @@
     <string name="version_differences">发行版本 Release 不会输出 Log，Debug 版本会输出 Log，非必要不建议安装 Debug 版本</string>
     <string name="fingerprint_test">指纹测试</string>
     <string name="about_app">关于应用</string>
+    <string name="about_title">About App\n</string>
 </resources>
