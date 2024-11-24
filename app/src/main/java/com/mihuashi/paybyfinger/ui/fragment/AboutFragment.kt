@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -34,18 +35,26 @@ class AboutFragment : AppCompatActivity() {
         val items = listOf(
             ListItem(this.getString(R.string.version_name), BuildConfig.VERSION_NAME,R.drawable.ic_round_error_outline),
             ListItem(this.getString(R.string.Developers), this.getString(R.string.Developers_name),R.drawable.people),
+            ListItem(this.getString(R.string.github_home), this.getString(R.string.github_home_name),R.drawable.baseline_home_24),
             ListItem(this.getString(R.string.licenses), this.getString(R.string.licenses_name),R.drawable.baseline_text_snippet_24)
         )
 
         // 初始化适配器并设置点击事件
         val adapter = ListAdapter(items) { item ->
             // 点击事件处理
-            if (item.title == this.getString(R.string.Developers)) {
+            if (item.title == this.getString(R.string.github_home)) {
                 val url = "https://github.com/ghhccghk/mhspay"
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 startActivity(intent)
             }
-            //Toast.makeText(this, "Clicked: ${item.title}", Toast.LENGTH_SHORT).show()
+            if (item.title == this.getString(R.string.licenses)) {
+                val url = "https://www.gnu.org/licenses/lgpl-3.0.txt"
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            }
+            if (item.title == this.getString(R.string.version_name)) {
+                Toast.makeText(this,this.getString(R.string.play_yuanshen),Toast.LENGTH_SHORT).show()
+            }
         }
 
 
