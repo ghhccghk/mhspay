@@ -40,6 +40,9 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
+      - name: Set execute permissions for gradlew
+        run: chmod +x ./gradlew
+
       - name: Build with Gradle
         run: |
           ./gradlew assemble
