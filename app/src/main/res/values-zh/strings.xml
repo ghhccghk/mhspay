@@ -22,5 +22,5 @@
     <string name="Developers">主要开发者与贡献者</string>
     <string name="version_name">版本</string>
     <string name="licenses">许可证</string>
-    <string name="licenses_name">GPL 3 , 但是软件中使用到的除代码外资源根据本身的携带的协议和版权非商业化使用</string>
+    <string name="licenses_name">LGPLv3 , 但是软件中使用到的除代码外资源根据本身的携带的协议和版权非商业化使用</string>
 </resources>

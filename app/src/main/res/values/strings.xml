@@ -25,5 +25,5 @@
     <string name="Developers_name" translatable="false">李太白(@ghhccghk)</string>
     <string name="version_name">Version</string>
     <string name="licenses">Licenses</string>
-    <string name="licenses_name">GPL 3 , However, the software uses non-commercial use of resources other than code under its own carrying agreements and copyrights.</string>
+    <string name="licenses_name">LGPLv3 , However, the software uses non-commercial use of resources other than code under its own carrying agreements and copyrights.</string>
 </resources>
