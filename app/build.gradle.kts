@@ -1,15 +1,23 @@
-import com.android.build.api.dsl.AaptOptions
+@file:Suppress("UnstableApiUsage")
+
 import com.android.build.gradle.internal.api.BaseVariantOutputImpl
+import org.jetbrains.kotlin.konan.properties.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
 }
 
+
 android {
     namespace = "com.mihuashi.paybyfinger"
     compileSdk = 34
     val buildTime = System.currentTimeMillis()
+    val localProperties = Properties()
+    if (rootProject.file("local.properties").canRead())
+        localProperties.load(rootProject.file("local.properties").inputStream())
+
+
     defaultConfig {
         applicationId = "com.mihuashi.paybyfinger"
         minSdk = 28
@@ -25,12 +33,30 @@ android {
         }
     }
 
+    val config = localProperties.getProperty("androidStoreFile")?.let {
+        signingConfigs.create("config") {
+            storeFile = file(it)
+            storePassword = localProperties.getProperty("androidStorePassword")
+            keyAlias = localProperties.getProperty("androidKeyAlias")
+            keyPassword = localProperties.getProperty("androidKeyPassword")
+            enableV3Signing = true
+            enableV4Signing = true
+        }
+    }
+
     buildTypes {
+        all {
+            signingConfig = config ?: signingConfigs["debug"]
+        }
         release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+            isMinifyEnabled = true
+            isShrinkResources = true
+            vcsInfo.include = false
+            setProguardFiles(
+                listOf(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro"
+                )
             )
         }
     }
