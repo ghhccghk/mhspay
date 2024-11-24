@@ -19,6 +19,11 @@
     <string name="device_label">Device Information</string>
     <string name="about_app">About App</string>
     <string name="about_title">About App\n</string>
-    <string name="element_text">123</string>
-    <string name="icon">1</string>
+    <string name="element_text" translatable="false">123</string>
+    <string name="icon" translatable="false">1</string>
+    <string name="Developers">Main Developers and Contributors</string>
+    <string name="Developers_name" translatable="false">李太白(@ghhccghk)</string>
+    <string name="version_name">Version</string>
+    <string name="licenses">Licenses</string>
+    <string name="licenses_name">GPL 3 , However, the software uses non-commercial use of resources other than code under its own carrying agreements and copyrights.</string>
 </resources>

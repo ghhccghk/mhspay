@@ -1,20 +1,21 @@
 package com.mihuashi.paybyfinger.ui.fragment
 
 import android.annotation.SuppressLint
-import android.app.LauncherActivity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
 import com.mihuashi.paybyfinger.BuildConfig
 import com.mihuashi.paybyfinger.R
+
 
 class AboutFragment : AppCompatActivity() {
 
@@ -31,15 +32,20 @@ class AboutFragment : AppCompatActivity() {
 
         // 示例数据
         val items = listOf(
-            ListItem("版本", BuildConfig.VERSION_CODE.toString(),R.drawable.ic_round_error_outline),
-            ListItem("Item 2", "Description for Item 2",R.drawable.ic_round_settings),
-            ListItem("Item 3", "Description for Item 3",R.drawable.ic_round_settings)
+            ListItem(this.getString(R.string.version_name), BuildConfig.VERSION_NAME,R.drawable.ic_round_error_outline),
+            ListItem(this.getString(R.string.Developers), this.getString(R.string.Developers_name),R.drawable.people),
+            ListItem(this.getString(R.string.licenses), this.getString(R.string.licenses_name),R.drawable.baseline_text_snippet_24)
         )
 
         // 初始化适配器并设置点击事件
         val adapter = ListAdapter(items) { item ->
             // 点击事件处理
-            Toast.makeText(this, "Clicked: ${item.title}", Toast.LENGTH_SHORT).show()
+            if (item.title == this.getString(R.string.Developers)) {
+                val url = "https://github.com/ghhccghk/mhspay"
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            }
+            //Toast.makeText(this, "Clicked: ${item.title}", Toast.LENGTH_SHORT).show()
         }
 
 
