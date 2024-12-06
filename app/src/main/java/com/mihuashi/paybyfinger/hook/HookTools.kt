@@ -2,7 +2,12 @@ package com.mihuashi.paybyfinger.hook
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.graphics.drawable.Icon
+import android.os.Bundle
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.text.InputFilter
@@ -14,7 +19,11 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.github.kyuubiran.ezxhelper.Log
+import org.json.JSONObject
 import java.security.KeyStore
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -25,6 +34,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 val alias = "my_secure_password_key"
+const val CHANNEL_ID: String = "channel_id_focusNotifpay"
 class HookTool {
     companion object    {
     private fun createKey(alias: String) {
@@ -313,6 +323,66 @@ private fun validatePasswordSave(context: Context, inputPassword: String) {
         // 显示对话框
         dialog.show()
     }
+
+
+        @SuppressLint("NotificationPermission")
+        fun sendNotification(text: String,context: Context) {
+            //  logE("sendNotification: " + context.packageName + ": " + text)
+            createNotificationChannel(context)
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            val bitmap = context.packageManager.getActivityIcon(launchIntent!!).toBitmap()
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            builder.setContentTitle(text)
+            builder.setSmallIcon(IconCompat.createWithBitmap(bitmap))
+            builder.setTicker(text).setPriority(NotificationCompat.PRIORITY_LOW)
+            builder.setOngoing(true) // 设置为常驻通知
+            builder.setContentIntent(
+                PendingIntent.getActivity(
+                    context, 0, launchIntent, PendingIntent.FLAG_MUTABLE
+                )
+            )
+            val jSONObject = JSONObject()
+            val jSONObject3 = JSONObject()
+            val jSONObject4 = JSONObject()
+            jSONObject4.put("type", 1)
+            jSONObject4.put("title", text)
+            jSONObject3.put("baseInfo", jSONObject4)
+            jSONObject3.put("ticker", text)
+            jSONObject3.put("tickerPic", "miui.focus.pic_ticker")
+            jSONObject3.put("tickerPicDark", "miui.focus.pic_ticker_dark")
+
+            jSONObject.put("param_v2", jSONObject3)
+            val bundle = Bundle()
+            bundle.putString("miui.focus.param", jSONObject.toString())
+            val bundle3 = Bundle()
+            bundle3.putParcelable(
+                "miui.focus.pic_ticker", Icon.createWithBitmap(bitmap)
+            )
+            bundle3.putParcelable(
+                "miui.focus.pic_ticker_dark", Icon.createWithBitmap(bitmap)
+            )
+            bundle.putBundle("miui.focus.pics", bundle3)
+            builder.addExtras(bundle)
+            val notification = builder.build()
+            (context.getSystemService("notification") as NotificationManager).notify(
+                CHANNEL_ID.hashCode(), notification
+            )
+        }
+
+        private fun createNotificationChannel(context: Context) {
+            val notificationManager = context.getSystemService("notification") as NotificationManager
+            val notificationChannel = NotificationChannel(
+                CHANNEL_ID, "mhspay", NotificationManager.IMPORTANCE_DEFAULT
+            )
+            notificationChannel.setSound(null, null)
+            notificationManager.createNotificationChannel(notificationChannel)
+        }
+
+
+        @SuppressLint("NotificationPermission")
+        fun cancelNotification(context: Context) {
+            (context.getSystemService("notification") as NotificationManager).cancel(CHANNEL_ID.hashCode())
+        }
     }
 }
 

@@ -54,11 +54,9 @@ object Hook : BaseHook() {
 
     private var isReceiverRegistered: Boolean = false
     override val name: String = "米画师hook"
-    private const val TAG = "mihuashihook"
     var savedDialogObject: Any? = null // 用来保存对象
     private var rmb: Int = 0  // 用来保存对象
     var uitext : Boolean = false //ui hook 确认
-    //var password :String = "" //密码
     lateinit var sharedPreferences: SharedPreferences
     var paytime: String = ""
 
@@ -80,6 +78,7 @@ object Hook : BaseHook() {
                             val time = intent?.getLongExtra("timestamp", 0) as Long
                             val pay = intent.getStringExtra("paytime") as String
                             val fullClassName = context?.javaClass?.name
+                            val miswitch = sharedPreferences.getBoolean("miswitch", false)
                             if (BuildConfig.DEBUG) {
                                 Log.i("FingerprintAuth 认证时间：${convertTimestampToTime(time)} $fullClassName")
                             }
@@ -99,7 +98,7 @@ object Hook : BaseHook() {
                                     Log.i("pay: $pay paytime : $paytime")
                                 }
                                 // 调用方法并传递参数
-                                if  (paytime == pay) {
+                                if  (paytime == pay && pass != null ) {
                                     method?.invoke(savedDialogObject, pass)
                                 } else  {
                                     Toast.makeText(
@@ -108,11 +107,16 @@ object Hook : BaseHook() {
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
-
+                                if (miswitch){
+                                    context?.let { it1 -> HookTool.cancelNotification(it1) }
+                                }
                             } else {
                                     Log.i("FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${convertTimestampToTime(time)}")
                                     Toast.makeText(context, "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${convertTimestampToTime(time)}", Toast.LENGTH_SHORT).show()
 
+                            }
+                            if (miswitch){
+                                context?.let { it1 -> HookTool.cancelNotification(it1) }
                             }
                         }
                     }
@@ -156,8 +160,10 @@ object Hook : BaseHook() {
                                 // 检查接收器是否已经注册
                                 // 获取当前的 InputPayingPasswordDialog 实例
                                 val allswitch = sharedPreferences.getBoolean("allswitch", false)
+                                val miswitch = sharedPreferences.getBoolean("miswitch", false)
+                                val amount = param.args[1] as Int
+                                val dialogInstance = param.thisObject
                                 if (allswitch) {
-                                    val dialogInstance = param.thisObject
                                     if (BuildConfig.DEBUG){
                                         Log.i("对象 ：$dialogInstance")
                                     }
@@ -168,10 +174,12 @@ object Hook : BaseHook() {
                                         context.registerReceiver(resultReceiver, IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT"))
                                         isReceiverRegistered = true  // 标记接收器已注册
                                     }
-                                    val amount = param.args[1] as Int
                                     rmb = amount
                                     if (BuildConfig.DEBUG) {
                                         Log.i("付的多少钱：$amount")
+                                    }
+                                    if (miswitch){
+                                        HookTool.sendNotification("支付:$amount 元",context)
                                     }
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         startFingerprintAuthentication()  // 启动指纹验证
@@ -224,7 +232,7 @@ object Hook : BaseHook() {
                 // 检查 rootView 的类型，如果是 FrameLayout，可以添加新的视图
                 if (rootView is FrameLayout) {
                     // 获取当前 Fragment 的 Context
-                    if (context != null) {
+                    if (context != null && BuildConfig.DEBUG ) {
                         Log.i("context : ${context.javaClass.name}")
                         XposedHelpers.callMethod(context.resources.assets, "addAssetPath", modulePath)
                     }
@@ -329,6 +337,7 @@ object Hook : BaseHook() {
     fun setui (classLoader: ClassLoader, subViewLinearLayout: LinearLayout, context: Context,bctivity:Activity){
             val resources = context.resources
             val allswitch = sharedPreferences.getBoolean("allswitch", false)
+            val miswitch = sharedPreferences.getBoolean("miswitch", false)
             val nameclass = findClass("com.qixin.mihuas.resource.compat.text.CompatTextView", classLoader)
             val roundedLinearLayoutclass = findClass("com.qixin.mihuas.resource.widget.RoundedLinearLayout", classLoader)
             val roundedRelativeLayoutclass = findClass("com.qixin.mihuas.resource.widget.RoundedRelativeLayout",classLoader)
@@ -337,7 +346,9 @@ object Hook : BaseHook() {
 
             val name = XposedHelpers.newInstance(nameclass, context) as TextView
             val nameone = XposedHelpers.newInstance(nameclass, context) as TextView
+            val nametwo = XposedHelpers.newInstance(nameclass, context) as TextView
             val roundedRelativeLayout = XposedHelpers.newInstance(roundedRelativeLayoutclass,context) as RelativeLayout
+            val roundedRelativeLayouta = XposedHelpers.newInstance(roundedRelativeLayoutclass,context) as RelativeLayout
             val roundedLinearLayout = XposedHelpers.newInstance(roundedLinearLayoutclass, context) as LinearLayout
 
             val newItemView = XposedHelpers.newInstance(viewa, context) as ViewGroup
@@ -347,6 +358,7 @@ object Hook : BaseHook() {
             val SwitchNormal = getresId(resources,"SwitchNormal","style")
             val themedContext = ContextThemeWrapper(context, SwitchNormal)
             val switch = XposedHelpers.newInstance(switchclass, themedContext) as CompoundButton
+            val switcha = XposedHelpers.newInstance(switchclass, themedContext) as CompoundButton
 
             // 获取资源 ID
             val colorInfo60 = getresId(resources,"colorInfo60", "color")
@@ -394,6 +406,10 @@ object Hook : BaseHook() {
                 layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
             }
 
+            val frameLayouta = FrameLayout(context).apply {
+                layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+            }
+
             // 设置布局参数，避免重叠，使用WRAP_CONTENT
             val layoutParamsaa = FrameLayout.LayoutParams(
                  FrameLayout.LayoutParams.MATCH_PARENT,
@@ -417,6 +433,14 @@ object Hook : BaseHook() {
                 resources.getDimension(dp15).toInt()
             )
 
+            //////// 开关构建
+            roundedRelativeLayouta.setPadding(
+                resources.getDimension(dp15).toInt(),
+                resources.getDimension(dp15).toInt(),
+                resources.getDimension(dp15).toInt(),
+                resources.getDimension(dp15).toInt()
+            )
+
             // 创建文本视图 (CompatTextView)
             // 设置文本大小
             nameone.textSize = resources.getDimension(txt32) / context.resources.displayMetrics.scaledDensity
@@ -427,12 +451,25 @@ object Hook : BaseHook() {
             //nameone.setTextColor(resources.getColorStateList(colorInfo80))
             val colorStateList = ContextCompat.getColorStateList(context, colorInfo80)
             nameone.setTextColor(colorStateList)
+
+
+            // 设置文本大小
+            nametwo.textSize = resources.getDimension(txt32) / context.resources.displayMetrics.scaledDensity
+            nametwo.text = "焦点通知金额开关（仅小米可用）"
+            // 设置文本样式为粗体
+            nametwo.setTypeface(null, Typeface.BOLD)
+            // 设置文本颜色
+            nametwo.setTextColor(colorStateList)
+
+
             // 设置布局参数：垂直居中
             val paramsa = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT)
             paramsa.addRule(RelativeLayout.CENTER_VERTICAL)
             nameone.layoutParams = paramsa
+            nametwo.layoutParams = paramsa
 
-            val paramsb = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+
+        val paramsb = RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
             paramsb.addRule(RelativeLayout.CENTER_VERTICAL)
             paramsb.addRule(RelativeLayout.ALIGN_PARENT_END)
             switch.layoutParams = paramsb
@@ -451,17 +488,38 @@ object Hook : BaseHook() {
                     }
                 }
             }
+
+            switcha.layoutParams = paramsb
+            switcha.isChecked = miswitch
+            switcha.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                with(sharedPreferences.edit()) {
+                    putBoolean("miswitch",true)
+                    apply()
+                }
+            } else {
+                with(sharedPreferences.edit()) {
+                    putBoolean("miswitch",false)
+                    apply()
+                }
+            }
+            }
             // 将 TextView 和 SwitchButton 添加到容器中
             roundedRelativeLayout.addView(nameone)
             roundedRelativeLayout.addView(switch)
 
+            // 将 TextView 和 SwitchButton 添加到容器中
+            roundedRelativeLayouta.addView(nametwo)
+            roundedRelativeLayouta.addView(switcha)
 
             ///////开关构建完成
             frameLayout.addView(roundedRelativeLayout)
+            frameLayouta.addView(roundedRelativeLayouta)
 
             roundedLinearLayout.addView(name)  // 添加标题文本
             roundedLinearLayout.addView(newItemView) //添加模块版本号
             roundedLinearLayout.addView(frameLayout)// 添加开关
+            roundedLinearLayout.addView(frameLayouta)
             if (allswitch) {
                 roundedLinearLayout.addView(setpassword) //添加设置密码模块
             }
