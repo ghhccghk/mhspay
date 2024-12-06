@@ -21,4 +21,9 @@
 #### 密码使用AES加密，在有tee的设备会在tee加解密来保证安全，所有和密码有关的界面做了防录屏截图处理，防止第三方APP截取密码。本模块不会保留密码，密码只能在开启Debug编译的情况下在系统日志里会出现。
 
 ## 致谢
-#### [Shellwen ](https://github.com/ShellWen) 感谢其帮忙脱壳
+#### [Shellwen](https://github.com/ShellWen) 感谢其帮忙脱壳
+#### [EzXHelper](https://github.com/KyuubiRan/EzXHelper) 使用了其项目
+#### [XKT](https://github.com/xiaowine/XKT) 使用了其项目
+#### [Lyric-Getter](https://github.com/xiaowine/Lyric-Getter) 参考了界面写法
+#### [HyperCeiler](https://github.com/ReChronoRain/HyperCeiler) 参考了焦点通知实现
+[<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" width="200"/>](https://www.jetbrains.com)
