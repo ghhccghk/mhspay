@@ -1,10 +1,10 @@
 package com.mihuashi.paybyfinger.hook
 
 
+//noinspection SuspiciousImport
 import android.R
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -17,14 +17,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Parcelable
-import android.text.InputFilter
-import android.util.Base64
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
-import android.widget.Button
 import android.widget.CompoundButton
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
@@ -56,7 +51,7 @@ object Hook : BaseHook() {
     override val name: String = "米画师hook"
     var savedDialogObject: Any? = null // 用来保存对象
     private var rmb: Int = 0  // 用来保存对象
-    var uitext : Boolean = false //ui hook 确认
+    private var uitext : Boolean = false //ui hook 确认
     lateinit var sharedPreferences: SharedPreferences
     var paytime: String = ""
 
@@ -143,7 +138,7 @@ object Hook : BaseHook() {
                     loadClass("com.qixin.mihuas.core.mvvm.v.BaseFragment",classLoader).methodFinder()
                         .first{ name == "onCreateView" }
                         .createHook {
-                            after{
+                            after{ it ->
                                 val fragmentInstance = it.thisObject
                                 // 检查 fragmentInstance 是否为 MineSettingEmployerFragment 的实例
                                 if (fragmentInstance::class.java.name == "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment") {
@@ -333,6 +328,7 @@ object Hook : BaseHook() {
         }
     }
 
+    @Suppress("DEPRECATION")
     @SuppressLint("UseCompatLoadingForColorStateLists", "ResourceType")
     fun setui (classLoader: ClassLoader, subViewLinearLayout: LinearLayout, context: Context,bctivity:Activity){
             val resources = context.resources
@@ -355,8 +351,8 @@ object Hook : BaseHook() {
             val setpassword = XposedHelpers.newInstance(viewa, context) as ViewGroup
 
             // 创建带有指定 style 的上下文，米画师默认开关样式
-            val SwitchNormal = getresId(resources,"SwitchNormal","style")
-            val themedContext = ContextThemeWrapper(context, SwitchNormal)
+            val switchNormal = getresId(resources,"SwitchNormal","style")
+            val themedContext = ContextThemeWrapper(context, switchNormal)
             val switch = XposedHelpers.newInstance(switchclass, themedContext) as CompoundButton
             val switcha = XposedHelpers.newInstance(switchclass, themedContext) as CompoundButton
 
