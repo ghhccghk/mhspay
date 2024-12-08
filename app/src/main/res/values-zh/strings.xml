@@ -25,4 +25,5 @@
     <string name="licenses_name">LGPLv3 , 但是软件中使用到的除代码外资源根据本身的携带的协议和版权非商业化使用</string>
     <string name="github_home">Github 主页</string>
     <string name="play_yuanshen">我要玩原神</string>
+    <string name="touchable">激活了，点什么呢?(-_-)</string>
 </resources>
