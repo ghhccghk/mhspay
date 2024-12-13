@@ -8,6 +8,7 @@ import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
@@ -40,6 +41,7 @@ import com.mihuashi.paybyfinger.hook.HookTool.Companion.decryptData
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.findParentByChild
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.getresId
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.showMaterialPasswordDialog
+import com.mihuashi.paybyfinger.hook.HookTool.Companion.unregisterReceiver
 import com.mihuashi.paybyfinger.modulePath
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
@@ -54,6 +56,80 @@ object Hook : BaseHook() {
     private var uitext: Boolean = false //ui hook 确认
     lateinit var sharedPreferences: SharedPreferences
     var paytime: String = ""
+    var re : Boolean = false
+    val resultReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val result = intent?.getBooleanExtra("result", false) ?: false
+            val errorMessage = intent?.getStringExtra("error_message")
+            val time = intent?.getLongExtra("timestamp", 0) as Long
+            val pay = intent.getStringExtra("paytime") as String
+            val fullClassName = context?.javaClass?.name
+            val miswitch = sharedPreferences.getBoolean("miswitch", false)
+            if (BuildConfig.DEBUG) {
+                Log.i("FingerprintAuth 认证时间：${convertTimestampToTime(time)} $fullClassName")
+            }
+            if (result) {
+                Toast.makeText(
+                    context,
+                    "FingerprintAuth 认证成功，时间：${convertTimestampToTime(time)}",
+                    Toast.LENGTH_SHORT
+                ).show()
+                // 获取你想要调用的方法
+                val method = savedDialogObject?.javaClass?.getDeclaredMethod(
+                    "onPasswordEdited",
+                    String::class.java
+                )
+                if (method != null) {
+                    method.isAccessible = true
+                }  // 确保方法是可以访问的
+                if (context?.let { it1 -> decryptData(alias, it1,true) } == "ok" ) {
+                    val pass = decryptData(alias, context)
+                    if (BuildConfig.DEBUG) {
+                        Log.i("pay: $pay paytime : $paytime")
+                    }
+                    // 调用方法并传递参数
+                    if (paytime == pay && pass != null) {
+                        method?.invoke(savedDialogObject, pass)
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "校验失败，无法认证",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    Toast.makeText(
+                        context,
+                        "解密失败，无法认证",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                if (miswitch) {
+                    context?.let { it1 -> HookTool.cancelNotification(it1) }
+                }
+                re = true
+            } else {
+                Log.i(
+                    "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${
+                        convertTimestampToTime(
+                            time
+                        )
+                    }"
+                )
+                Toast.makeText(
+                    context,
+                    "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${
+                        convertTimestampToTime(time)
+                    }",
+                    Toast.LENGTH_SHORT
+                ).show()
+                re = true
+            }
+            if (miswitch) {
+                context?.let { it1 -> HookTool.cancelNotification(it1) }
+            }
+        }
+    }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -69,78 +145,7 @@ object Hook : BaseHook() {
                     ) // 用来保存设置
 
                     val serviceIntent = Intent()
-                    val resultReceiver = object : BroadcastReceiver() {
-                        override fun onReceive(context: Context?, intent: Intent?) {
-                            val result = intent?.getBooleanExtra("result", false) ?: false
-                            val errorMessage = intent?.getStringExtra("error_message")
-                            val time = intent?.getLongExtra("timestamp", 0) as Long
-                            val pay = intent.getStringExtra("paytime") as String
-                            val fullClassName = context?.javaClass?.name
-                            val miswitch = sharedPreferences.getBoolean("miswitch", false)
-                            if (BuildConfig.DEBUG) {
-                                Log.i("FingerprintAuth 认证时间：${convertTimestampToTime(time)} $fullClassName")
-                            }
-                            if (result) {
-                                Toast.makeText(
-                                    context,
-                                    "FingerprintAuth 认证成功，时间：${convertTimestampToTime(time)}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                // 获取你想要调用的方法
-                                val method = savedDialogObject?.javaClass?.getDeclaredMethod(
-                                    "onPasswordEdited",
-                                    String::class.java
-                                )
-                                if (method != null) {
-                                    method.isAccessible = true
-                                }  // 确保方法是可以访问的
-                                if (context?.let { it1 -> decryptData(alias, it1,true) } == "ok" ) {
-                                    val pass = decryptData(alias, context)
-                                    if (BuildConfig.DEBUG) {
-                                        Log.i("pay: $pay paytime : $paytime")
-                                    }
-                                    // 调用方法并传递参数
-                                    if (paytime == pay && pass != null) {
-                                        method?.invoke(savedDialogObject, pass)
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "校验失败，无法认证",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        "解密失败，无法认证",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                if (miswitch) {
-                                    context?.let { it1 -> HookTool.cancelNotification(it1) }
-                                }
-                            } else {
-                                Log.i(
-                                    "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${
-                                        convertTimestampToTime(
-                                            time
-                                        )
-                                    }"
-                                )
-                                Toast.makeText(
-                                    context,
-                                    "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${
-                                        convertTimestampToTime(time)
-                                    }",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-
-                            }
-                            if (miswitch) {
-                                context?.let { it1 -> HookTool.cancelNotification(it1) }
-                            }
-                        }
-                    }
+                    val InputPayingPasswordDialogClass = loadClass("com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog", classLoader)
 
                     // 创建 Intent 启动指纹服务
                     fun startFingerprintAuthentication() {
@@ -177,10 +182,7 @@ object Hook : BaseHook() {
                                 }
                             }
                         }
-                    loadClass(
-                        "com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog",
-                        classLoader
-                    ).methodFinder()
+                    InputPayingPasswordDialogClass.methodFinder()
                         .first { name == "setPayingPasswordContent" }
                         .createHook {
                             after { param ->
@@ -218,10 +220,7 @@ object Hook : BaseHook() {
                             }
                         }
 
-                    loadClass(
-                        "com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog",
-                        classLoader
-                    ).methodFinder()
+                    InputPayingPasswordDialogClass.methodFinder()
                         .first { name == "onPasswordEdited" }
                         .createHook {
                             after { param ->
@@ -234,6 +233,19 @@ object Hook : BaseHook() {
                                     }
                                 }
 
+                            }
+                        }
+
+                    loadClass("com.qixin.mihuas.widgets.modal.base.BaseDialog\$SafetyDialog",classLoader).methodFinder()
+                        .first{ name == "dismiss"}
+                        .createHook {
+                            after {
+                                if (re) {
+                                    Log.i("已经注销接收器")
+                                    unregisterReceiver(context,resultReceiver)
+                                    Toast.makeText(context,"已经注销接收器",Toast.LENGTH_SHORT).show()
+                                    re = false
+                                }
                             }
                         }
 
@@ -282,12 +294,11 @@ object Hook : BaseHook() {
                         // 创建 MineSettingItemView 实例，传入 Context
                         val newItemView =
                             XposedHelpers.newInstance(mineSettingItemViewClass, context) as View
-
+                        val svg_icon_install_manage = getresId(resources, "svg_icon_install_manage", "drawable")
 
                         // 设置 label 和 icon
                         XposedHelpers.setObjectField(newItemView, "label", "指纹认证")
-                        XposedHelpers.setIntField(newItemView, "iconRes", 0x7f080993)
-                        //XposedHelpers.setIntField(newItemView, "id", 0x7f090edc)
+                        XposedHelpers.setIntField(newItemView, "iconRes", svg_icon_install_manage)
                         XposedHelpers.callMethod(newItemView, "setCornerSide", 1)
                         XposedHelpers.callMethod(newItemView, "componentInitialize")
 

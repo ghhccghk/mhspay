@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.graphics.drawable.Icon
 import android.os.Bundle
@@ -438,6 +439,11 @@ class HookTool {
         @SuppressLint("NotificationPermission")
         fun cancelNotification(context: Context) {
             (context.getSystemService("notification") as NotificationManager).cancel(CHANNEL_ID.hashCode())
+        }
+
+        /** 注销广播 */
+        fun unregisterReceiver(context: Context,br: BroadcastReceiver ){
+            context.unregisterReceiver(br)
         }
     }
 }
