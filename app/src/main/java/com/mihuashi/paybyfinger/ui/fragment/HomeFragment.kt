@@ -19,6 +19,7 @@ import com.mihuashi.paybyfinger.ui.viewmodel.HomeViewModel
 import com.mihuashi.paybyfinger.ui.viewmodel.ShareViewModel
 import cn.xiaowine.xkt.Tool.toUpperFirstCaseAndLowerOthers
 import com.google.android.material.color.MaterialColors
+import com.mihuashi.paybyfinger.hook.Tool.getPhoneName
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -67,7 +68,7 @@ class HomeFragment : Fragment() {
             }
 
             // 信息卡片设置
-            deviceValue.text = "${Build.BRAND} ${Build.MODEL} Android ${Build.VERSION.RELEASE}"
+            deviceValue.text = "$getPhoneName (${Build.DEVICE}) Android ${Build.VERSION.RELEASE}"
             versionLabelValue.text = BuildConfig.VERSION_NAME
             versionCodeValue.text = BuildConfig.VERSION_CODE.toString()
             versionTypeValue.text = BuildConfig.BUILD_TYPE.toUpperFirstCaseAndLowerOthers()

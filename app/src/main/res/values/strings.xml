@@ -22,7 +22,7 @@
     <string name="element_text" translatable="false">123</string>
     <string name="icon" translatable="false">1</string>
     <string name="Developers">Main Developers and Contributors</string>
-    <string name="Developers_name" translatable="false">李太白(@ghhccghk)；Shellwen(@ShellWen)，感谢舌吻老师帮忙反编译程序。</string>
+    <string name="Developers_name" formatted="false" >Li Taibai(@ghhccghk) \n Shellwen(@ShellWen)，Thanks to ShellWen for helping to decompile the program!。 \n 康柴（QQ:1561788697），Icon Design</string>
     <string name="version_name">Version</string>
     <string name="licenses">Licenses</string>
     <string name="licenses_name">LGPLv3 , However, the software uses non-commercial use of resources other than code under its own carrying agreements and copyrights.</string>

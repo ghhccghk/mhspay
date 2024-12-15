@@ -15,4 +15,5 @@
         android:drawable="@mipmap/ic_launcher_foreground"
         android:inset="-8dp" />
 </item>
+    <monochrome android:drawable="@mipmap/ic_logo_foreground" />
 </layer-list>

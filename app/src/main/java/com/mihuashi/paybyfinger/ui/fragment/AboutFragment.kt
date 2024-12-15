@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -22,13 +23,14 @@ class AboutFragment : AppCompatActivity() {
 
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.fragment_about)
         val aboutToolbar: MaterialToolbar = findViewById(R.id.about_toolbar)
         val view : RecyclerView = findViewById(R.id.about_recycler_view)
 
         aboutToolbar.setNavigationOnClickListener {
-            finish() // 或者 finish()
+            finish()
         }
 
         // 示例数据

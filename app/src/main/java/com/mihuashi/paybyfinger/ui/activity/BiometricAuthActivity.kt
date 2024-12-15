@@ -65,7 +65,6 @@ class BiometricAuthActivity : FragmentActivity() {
     private val authenticationCallback = object : BiometricPrompt.AuthenticationCallback() {
         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
             // 认证成功，插入额外信息
-            Toast.makeText(this@BiometricAuthActivity, "认证成功", Toast.LENGTH_SHORT).show()
             val values = ContentValues().apply {
                 put("result", true)
                 put("timestamp", System.currentTimeMillis()) // 保存认证时间戳

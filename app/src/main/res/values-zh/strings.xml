@@ -20,6 +20,7 @@
     <string name="about_app">关于应用</string>
     <string name="about_title">About App\n</string>
     <string name="Developers">主要开发者与贡献者</string>
+    <string name="Developers_name" formatted="false" >李太白(@ghhccghk)； \n Shellwen(@ShellWen)，感谢舌吻老师帮忙反编译程序。\n 康柴（QQ:1561788697），图标设计</string>
     <string name="version_name">版本</string>
     <string name="licenses">许可证</string>
     <string name="licenses_name">LGPLv3 , 但是软件中使用到的除代码外资源根据本身的携带的协议和版权非商业化使用</string>
