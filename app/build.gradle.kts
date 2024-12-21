@@ -22,11 +22,11 @@ android {
         applicationId = "com.mihuashi.paybyfinger"
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         dependenciesInfo.includeInApk = false
-        ndk.abiFilters += arrayOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+        ndk.abiFilters += arrayOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64","armeabi","mips", "mips64")
         buildConfigField("long", "BUILD_TIME", "$buildTime")
         vectorDrawables {
             useSupportLibrary = true

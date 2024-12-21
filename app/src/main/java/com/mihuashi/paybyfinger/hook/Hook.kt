@@ -56,7 +56,6 @@ object Hook : BaseHook() {
     private var uitext: Boolean = false //ui hook 确认
     lateinit var sharedPreferences: SharedPreferences
     var paytime: String = ""
-    var re : Boolean = false
     val resultReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val result = intent?.getBooleanExtra("result", false) ?: false
@@ -107,7 +106,7 @@ object Hook : BaseHook() {
                 if (miswitch) {
                     context?.let { it1 -> HookTool.cancelNotification(it1) }
                 }
-                re = true
+                isReceiverRegistered = true
             } else {
                 Log.i(
                     "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${
@@ -123,7 +122,7 @@ object Hook : BaseHook() {
                     }",
                     Toast.LENGTH_SHORT
                 ).show()
-                re = true
+                isReceiverRegistered = true
             }
             if (miswitch) {
                 context?.let { it1 -> HookTool.cancelNotification(it1) }
@@ -240,11 +239,11 @@ object Hook : BaseHook() {
                         .first{ name == "dismiss"}
                         .createHook {
                             after {
-                                if (re) {
+                                if (isReceiverRegistered) {
                                     Log.i("已经注销接收器")
                                     unregisterReceiver(context,resultReceiver)
                                     Toast.makeText(context,"已经注销接收器",Toast.LENGTH_SHORT).show()
-                                    re = false
+                                    isReceiverRegistered = false
                                 }
                             }
                         }
