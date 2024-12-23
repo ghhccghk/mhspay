@@ -64,72 +64,53 @@ class BiometricAuthActivity : FragmentActivity() {
 
     private val authenticationCallback = object : BiometricPrompt.AuthenticationCallback() {
         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-            // 认证成功，插入额外信息
-            val values = ContentValues().apply {
-                put("result", true)
-                put("timestamp", System.currentTimeMillis()) // 保存认证时间戳
-                put("paytime", paytime) // 回传启动时间校验
-
-            }
-            contentResolver.insert(Uri.parse("content://com.mihuashi.paybyfinger.provider/results"), values)
-            resultIntent.putExtra("result", false)
+            resultIntent.putExtra("resultcode", true)
             resultIntent.putExtra("timestamp", System.currentTimeMillis())
+            resultIntent.putExtra("paytime", paytime) // 回传启动时间校验
             // 认证成功
-            val resultIntent = Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
+            val resultIntenta = Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
                 putExtra("result", true)
                 putExtra("error_message", "null")
                 putExtra("timestamp", System.currentTimeMillis())
                 putExtra("paytime", paytime) // 回传启动时间校验
             }
-            sendBroadcast(resultIntent) // 发送广播
+            sendBroadcast(resultIntenta) // 发送广播
+            setResult(Activity.RESULT_OK,resultIntent)
             finish()
         }
 
         override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
             // 认证错误
             Log.e("BiometricAuthActivity", "Authentication error: $errString code: $errorCode")
-            val values = ContentValues().apply {
-                put("result", false)
-                put("error_message", errString.toString()) // 保存错误信息
-                put("timestamp", System.currentTimeMillis()) // 保存认证时间戳
-                put("paytime", paytime) // 回传启动时间校验
-            }
-            contentResolver.insert(Uri.parse("content://com.mihuashi.paybyfinger.provider/results"), values)
-            resultIntent.putExtra("result", false)
+            resultIntent.putExtra("resultcode", false)
             resultIntent.putExtra("error_message", errString.toString())
             resultIntent.putExtra("timestamp", System.currentTimeMillis())
-            setResult(Activity.RESULT_CANCELED, Intent().putExtra("error", errString.toString()))
+            resultIntent.putExtra("paytime", paytime) // 回传启动时间校验
+            setResult(Activity.RESULT_CANCELED,resultIntent)
 
-            val resultIntent = Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
+            val resultIntenta = Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
                 putExtra("result", false)
                 putExtra("error_message", errString.toString())
                 putExtra("timestamp", System.currentTimeMillis())
                 putExtra("paytime", paytime) // 回传启动时间校验
             }
-            sendBroadcast(resultIntent) // 发送广播
+            sendBroadcast(resultIntenta) // 发送广播
             finish()
         }
 
         override fun onAuthenticationFailed() {
             // 认证失败
-            //Toast.makeText(this@BiometricAuthActivity, "认证失败", Toast.LENGTH_SHORT).show()
-            val values = ContentValues().apply {
-                put("result", false)
-                put("error_message", "认证失败") // 保存错误信息
-                put("timestamp", System.currentTimeMillis()) // 保存认证时间戳
-                put("paytime", paytime) // 回传启动时间校验
-            }
-            contentResolver.insert(Uri.parse("content://com.mihuashi.paybyfinger.provider/results"), values)
-            setResult(Activity.RESULT_CANCELED)
-            resultIntent.putExtra("result", false)
+            resultIntent.putExtra("resultcode", false)
             resultIntent.putExtra("error_message", "认证失败")
-            val resultIntent = Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
+            resultIntent.putExtra("paytime", paytime) // 回传启动时间校验
+            setResult(Activity.RESULT_CANCELED,resultIntent)
+            val resultIntenta = Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
                 putExtra("result", false)
                 putExtra("error_message", "未知错误")
                 putExtra("timestamp", System.currentTimeMillis())
                 putExtra("paytime", paytime) // 回传启动时间校验
             }
-            sendBroadcast(resultIntent) // 发送广播
+            sendBroadcast(resultIntenta) // 发送广播
             finish()
         }
     }

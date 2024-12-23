@@ -27,4 +27,6 @@
     <string name="github_home">Github 主页</string>
     <string name="play_yuanshen">我要玩原神</string>
     <string name="touchable">激活了，点什么呢?(-_-)</string>
+    <string name="fingerprint_ok">指纹ok</string>
+    <string name="fingerprint_no_ok">指纹不ok</string>
 </resources>

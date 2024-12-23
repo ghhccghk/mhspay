@@ -30,4 +30,6 @@
     <string name="github_home_name" translatable="false">https://github.com/ghhccghk/mhspay</string>
     <string name="play_yuanshen">I want to play Genshin.</string>
     <string name="touchable">It\'s activated. What\'s the point?(-_-)</string>
+    <string name="fingerprint_ok">Fingerprint ok</string>
+    <string name="fingerprint_no_ok">Fingerprint No Ok</string>
 </resources>

@@ -35,10 +35,6 @@
             android:theme="@style/Theme.MyApplication">
         </activity>
 
-        <provider
-            android:name=".receiver.ResultContentProvider"
-            android:authorities="com.mihuashi.paybyfinger.provider"
-            android:exported="true"/>
         <meta-data
             android:name="xposeddescription"
             android:value="@string/xposed_desc" />
