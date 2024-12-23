@@ -8,6 +8,7 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.setupWithNavController
 import cn.xiaowine.dsp.DSP
 import cn.xiaowine.dsp.data.MODE
+import cn.xiaowine.xkt.AcTool
 import com.google.android.material.navigation.NavigationBarView
 import com.mihuashi.paybyfinger.databinding.ActivityMainBinding
 import com.mihuashi.paybyfinger.tools.Tools.xpActivation
@@ -22,6 +23,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AcTool.init(this)
         enableEdgeToEdge()
         xpActivation = DSP.init(this, BuildConfig.APPLICATION_ID, MODE.HOOK, false)
         shareViewModel.activated = xpActivation
