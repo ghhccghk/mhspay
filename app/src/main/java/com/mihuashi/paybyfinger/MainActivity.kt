@@ -16,8 +16,6 @@ import com.mihuashi.paybyfinger.ui.viewmodel.ShareViewModel
 
 class MainActivity : AppCompatActivity() {
 
-    private var isBound = false
-    private val TAG = "mihuashihook"
     private val shareViewModel: ShareViewModel by viewModels()
     private lateinit var binding: ActivityMainBinding
 
