@@ -29,4 +29,7 @@
     <string name="touchable">激活了，点什么呢?(-_-)</string>
     <string name="fingerprint_ok">指纹ok</string>
     <string name="fingerprint_no_ok">指纹不ok</string>
+    <string name="systemversion_label">系统信息</string>
+    <string name="hide_setting_bottom_summary">隐藏设置（修改需重启应用）</string>
+    <string name="hide_setting_bottom">隐藏应用内指纹设置</string>
 </resources>

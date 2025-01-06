@@ -8,7 +8,6 @@ import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
@@ -35,14 +34,16 @@ import com.github.kyuubiran.ezxhelper.ClassUtils.loadClassOrNull
 import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createHook
 import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinder
+import com.mihuashi.paybyfinger.BaseHook
 import com.mihuashi.paybyfinger.BuildConfig
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.convertTimestampToTime
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.decryptData
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.findParentByChild
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.getresId
+import com.mihuashi.paybyfinger.hook.HookTool.Companion.isSixDigitNumber
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.showMaterialPasswordDialog
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.unregisterReceiver
-import com.mihuashi.paybyfinger.modulePath
+import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
 
@@ -87,8 +88,16 @@ object Hook : BaseHook() {
                         Log.i("pay: $pay paytime : $paytime")
                     }
                     // 调用方法并传递参数
-                    if (paytime == pay && pass != null) {
-                        method?.invoke(savedDialogObject, pass)
+                    if (paytime == pay && pass != null ) {
+                        if (isSixDigitNumber(pass)){
+                            method?.invoke(savedDialogObject, pass)
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "密码不是六位，无法认证",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     } else {
                         Toast.makeText(
                             context,
@@ -133,6 +142,7 @@ object Hook : BaseHook() {
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun init() {
+        super.init()
         loadClassOrNull("com.stub.StubApp").isNotNull {
             it.methodFinder().first { name == "attachBaseContext" }.createHook {
                 after { param ->
@@ -176,7 +186,9 @@ object Hook : BaseHook() {
                                 // 检查 fragmentInstance 是否为 MineSettingEmployerFragment 的实例
                                 if (fragmentInstance::class.java.name == "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment") {
                                     Log.i("名称 $fragmentInstance")
-                                    executeCustomFunction(fragmentInstance, classLoader)
+                                    if (!xConfig.hidesetting){
+                                        executeCustomFunction(fragmentInstance, classLoader)
+                                    }
 
                                 }
                             }
@@ -279,16 +291,6 @@ object Hook : BaseHook() {
 
                 // 检查 rootView 的类型，如果是 FrameLayout，可以添加新的视图
                 if (rootView is FrameLayout) {
-                    // 获取当前 Fragment 的 Context
-                    if (context != null && BuildConfig.DEBUG) {
-                        Log.i("context : ${context.javaClass.name}")
-                        XposedHelpers.callMethod(
-                            context.resources.assets,
-                            "addAssetPath",
-                            modulePath
-                        )
-                    }
-
                     if (context != null) {
                         // 创建 MineSettingItemView 实例，传入 Context
                         val newItemView =
@@ -615,7 +617,14 @@ object Hook : BaseHook() {
 
         ///////开关构建完成
         frameLayout.addView(roundedRelativeLayout)
-        frameLayouta.addView(roundedRelativeLayouta)
+        /** 小米焦点选项显示*/
+        if (xConfig.isMIOS){
+            frameLayouta.addView(roundedRelativeLayouta)
+            with(sharedPreferences.edit()) {
+                putBoolean("miswitch", false)
+                apply()
+            }
+        }
 
         roundedLinearLayout.addView(name)  // 添加标题文本
         roundedLinearLayout.addView(newItemView) //添加模块版本号

@@ -32,4 +32,7 @@
     <string name="touchable">It\'s activated. What\'s the point?(-_-)</string>
     <string name="fingerprint_ok">Fingerprint ok</string>
     <string name="fingerprint_no_ok">Fingerprint No Ok</string>
+    <string name="systemversion_label">System Information</string>
+    <string name="hide_setting_bottom_summary">Hide Setting （Modification requires restarting the application）</string>
+    <string name="hide_setting_bottom">Hide App Fingerprint Setting</string>
 </resources>

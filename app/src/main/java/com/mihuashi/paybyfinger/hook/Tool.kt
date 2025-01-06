@@ -3,6 +3,7 @@ package com.mihuashi.paybyfinger.hook
 import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
+import de.robv.android.xposed.XposedHelpers.findClass
 
 object  Tool {
     val getPhoneName by lazy {
@@ -28,5 +29,5 @@ object  Tool {
             ""
         }
             return ret
-        }
     }
+}

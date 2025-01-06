@@ -1,24 +1,19 @@
 package com.mihuashi.paybyfinger
 
-import android.app.Activity
-import android.app.Application
-import android.content.Context
 import cn.xiaowine.xkt.LogTool
 import com.github.kyuubiran.ezxhelper.EzXHelper
+import com.github.kyuubiran.ezxhelper.EzXHelper.moduleRes
 import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.LogExtensions.logexIfThrow
-import com.mihuashi.paybyfinger.hook.BaseHook
 import com.mihuashi.paybyfinger.hook.Hook
+import com.mihuashi.paybyfinger.hook.Systemui
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.IXposedHookZygoteInit
-import de.robv.android.xposed.XC_MethodHook
-import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 
 
-private const val PACKAGE_NAME_HOOKED = "com.qixin.mihuas"
+val PACKAGE_NAME_HOOKED = "com.qixin.mihuas"
 private const val TAG = "mihuashihook"
-var modulePath : String? = null
 
 class MainHook : IXposedHookLoadPackage, IXposedHookZygoteInit /* Optional */ {
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
@@ -31,12 +26,20 @@ class MainHook : IXposedHookLoadPackage, IXposedHookZygoteInit /* Optional */ {
             // Init hooks
             initHooks(Hook)
         }
+        if (lpparam.packageName == "com.android.systemui"){
+            // Init EzXHelper
+            EzXHelper.initHandleLoadPackage(lpparam)
+            EzXHelper.setLogTag(TAG)
+            EzXHelper.setToastTag(TAG)
+            LogTool.init("米画师hook", { BuildConfig.DEBUG })
+            // Init hooks
+            initHooks(Systemui)
+        }
     }
 
     // Optional
     override fun initZygote(startupParam: IXposedHookZygoteInit.StartupParam) {
         EzXHelper.initZygote(startupParam)
-        modulePath = startupParam.modulePath
     }
 
     private fun initHooks(vararg hook: BaseHook) {

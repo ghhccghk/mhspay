@@ -41,6 +41,14 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val screen = screen(context) {
+            switch("hide_setting_bottom") {
+                titleRes = R.string.hide_setting_bottom
+                summaryRes = R.string.hide_setting_bottom_summary
+                onClick {
+                    config.hidesetting = checked
+                    false
+                }
+            }
             accentButtonPref("open_settings_button") {
                 titleRes = R.string.fingerprint_test
                 onClick {

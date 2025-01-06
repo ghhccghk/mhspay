@@ -19,6 +19,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -35,7 +36,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 val alias = "my_secure_password_key"
-const val CHANNEL_ID: String = "channel_id_focusNotifpay"
+const val CHANNEL_ID: String = "mhspay"
 
 class HookTool {
     companion object {
@@ -385,28 +386,40 @@ class HookTool {
             val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
             val bitmap = context.packageManager.getActivityIcon(launchIntent!!).toBitmap()
             val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            val focusTextViewList = mutableListOf<TextView>()
             builder.setContentTitle(text)
+            focusTextViewList.forEach {
+                it.text = text
+            }
             builder.setSmallIcon(IconCompat.createWithBitmap(bitmap))
-            builder.setTicker(text).setPriority(NotificationCompat.PRIORITY_LOW)
+            builder.setTicker(text).setPriority(NotificationCompat.PRIORITY_MIN)
             builder.setOngoing(true) // 设置为常驻通知
             builder.setContentIntent(
                 PendingIntent.getActivity(
                     context, 0, launchIntent, PendingIntent.FLAG_MUTABLE
                 )
             )
-            val jSONObject = JSONObject()
-            val jSONObject3 = JSONObject()
-            val jSONObject4 = JSONObject()
-            jSONObject4.put("type", 1)
-            jSONObject4.put("title", text)
-            jSONObject3.put("baseInfo", jSONObject4)
-            jSONObject3.put("ticker", text)
-            jSONObject3.put("tickerPic", "miui.focus.pic_ticker")
-            jSONObject3.put("tickerPicDark", "miui.focus.pic_ticker_dark")
+            val param = JSONObject()
+            val param_v2 = JSONObject()
+            val baseInfo = JSONObject()
+            val picInfo = JSONObject()
+            baseInfo.put("type", 2)
+            baseInfo.put("title", "付款通知")
+            baseInfo.put("content",text)
+            picInfo.put("type", 2)
+            picInfo.put("pic","miui.focus.pic_ticker")
+            param_v2.put("baseInfo", baseInfo)
+            param_v2.put("picInfo", picInfo)
+            param_v2.put("ticker", text)
+            param_v2.put("tickerPic", "miui.focus.pic_ticker")
+            param_v2.put("tickerPicDark", "miui.focus.pic_ticker_dark")
+            param_v2.put("updatable",true)
+            param_v2.put("showSmallIcon",true)
 
-            jSONObject.put("param_v2", jSONObject3)
+            param.put("param_v2", param_v2)
+            param.put("scene","templateRevertProgressScene")
             val bundle = Bundle()
-            bundle.putString("miui.focus.param", jSONObject.toString())
+            bundle.putString("miui.focus.param", param.toString())
             val bundle3 = Bundle()
             bundle3.putParcelable(
                 "miui.focus.pic_ticker", Icon.createWithBitmap(bitmap)
@@ -428,7 +441,7 @@ class HookTool {
             val notificationManager =
                 context.getSystemService("notification") as NotificationManager
             val notificationChannel = NotificationChannel(
-                CHANNEL_ID, "mhspay", NotificationManager.IMPORTANCE_DEFAULT
+                CHANNEL_ID, "mhspay", NotificationManager.IMPORTANCE_MIN
             )
             notificationChannel.setSound(null, null)
             notificationManager.createNotificationChannel(notificationChannel)
@@ -445,6 +458,11 @@ class HookTool {
         fun unregisterReceiver(context: Context,br: BroadcastReceiver ){
             context.unregisterReceiver(br)
         }
+
+        fun isSixDigitNumber(input: String): Boolean {
+            return input.matches(Regex("^\\d{6}$"))
+        }
+
     }
 }
 
