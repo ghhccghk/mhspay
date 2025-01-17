@@ -26,5 +26,6 @@
 #### [XKT](https://github.com/xiaowine/XKT) 使用了其项目
 #### [Lyric-Getter](https://github.com/xiaowine/Lyric-Getter) 参考了界面写法
 #### [HyperCeiler](https://github.com/ReChronoRain/HyperCeiler) 参考了焦点通知实现
-  
+#### [MIUINativeNotifyIcon](https://github.com/fankes/MIUINativeNotifyIcon) 参考了小米系统信息获取
+
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" width="200"/>](https://www.jetbrains.com)

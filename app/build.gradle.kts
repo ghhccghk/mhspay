@@ -22,8 +22,8 @@ android {
         applicationId = "com.mihuashi.paybyfinger"
         minSdk = 28
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         dependenciesInfo.includeInApk = false
         ndk.abiFilters += arrayOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64","armeabi","mips", "mips64")
