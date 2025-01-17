@@ -118,6 +118,7 @@ class HookTool {
                     String(decryptedData, Charsets.UTF_8)
                 }
             } catch (e: Exception) {
+                Toast.makeText(context,"解密失败 原因$e",Toast.LENGTH_SHORT).show()
                 "解密失败: ${e.message}"
             }
         }

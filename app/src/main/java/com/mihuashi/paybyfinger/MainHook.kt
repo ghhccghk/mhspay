@@ -2,7 +2,6 @@ package com.mihuashi.paybyfinger
 
 import cn.xiaowine.xkt.LogTool
 import com.github.kyuubiran.ezxhelper.EzXHelper
-import com.github.kyuubiran.ezxhelper.EzXHelper.moduleRes
 import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.LogExtensions.logexIfThrow
 import com.mihuashi.paybyfinger.hook.Hook
@@ -41,7 +40,6 @@ class MainHook : IXposedHookLoadPackage, IXposedHookZygoteInit /* Optional */ {
     override fun initZygote(startupParam: IXposedHookZygoteInit.StartupParam) {
         EzXHelper.initZygote(startupParam)
     }
-
     private fun initHooks(vararg hook: BaseHook) {
         hook.forEach {
             runCatching {

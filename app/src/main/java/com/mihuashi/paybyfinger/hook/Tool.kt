@@ -8,7 +8,12 @@ import de.robv.android.xposed.XposedHelpers.findClass
 object  Tool {
     val getPhoneName by lazy {
         val marketName = getSystemProperties("ro.product.marketname")
-        if (marketName.isNotEmpty()) bigtextone(marketName) else bigtextone(Build.BRAND) + " " + Build.MODEL
+        val vivomarketName = getSystemProperties("ro.vivo.market.name")
+        if (bigtextone(Build.BRAND) =="Vivo"){
+            bigtextone(vivomarketName)
+        } else{
+            if (marketName.isNotEmpty()) bigtextone(marketName) else bigtextone(Build.BRAND) + " " + Build.MODEL
+        }
     }
 
     fun bigtextone(st:String): String {

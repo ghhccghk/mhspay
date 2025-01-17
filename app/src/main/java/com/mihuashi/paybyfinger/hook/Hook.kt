@@ -44,6 +44,7 @@ import com.mihuashi.paybyfinger.hook.HookTool.Companion.isSixDigitNumber
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.showMaterialPasswordDialog
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.unregisterReceiver
 import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
+import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
 
@@ -620,10 +621,6 @@ object Hook : BaseHook() {
         /** 小米焦点选项显示*/
         if (xConfig.isMIOS){
             frameLayouta.addView(roundedRelativeLayouta)
-            with(sharedPreferences.edit()) {
-                putBoolean("miswitch", false)
-                apply()
-            }
         }
 
         roundedLinearLayout.addView(name)  // 添加标题文本

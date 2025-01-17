@@ -1,5 +1,6 @@
 package com.mihuashi.paybyfinger.config
 
+import android.os.Build
 import cn.xiaowine.dsp.delegate.Delegate.serialLazy
 import com.mihuashi.paybyfinger.hook.Tool.getSystemProperties
 
@@ -12,16 +13,14 @@ class Config {
     val isMiSystem get() = isMIUI || isMIOS
 
     /**
-     * 当前设备是否不是 MIUI、HyperOS 定制 Android 系统
-     * @return [Boolean] 是否符合条件
-     */
-    val isNotMiSystem get() = !isMiSystem
-
-    /**
      * 当前设备是否是 MIUI 定制 Android 系统
      * @return [Boolean] 是否符合条件
      */
     val isMIUI by lazy { getSystemProperties("ro.miui.ui.version.name") != "" }
+
+    /** 判断当前设备是否为vivo设备*/
+    val isVivo by lazy { getSystemProperties("ro.vivo.os.build.display.id") != "" }
+
 
     /**
      * 当前设备是否是 HyperOS 定制 Android 系统
@@ -120,7 +119,7 @@ class Config {
      * 获取 MIUI、HyperOS 完全版本
      * @return [String]
      */
-    val systemFullVersion
+    val miuisystemFullVersion
         get() = when {
             isMIOS -> "HyperOS " + miosIncrementalVersion.let {
                 if (it.lowercase().endsWith(".dev").not() && it.lowercase().any { e -> e.code in 97..122 })
@@ -140,5 +139,16 @@ class Config {
             }
             else -> "不是 MIUI 或 HyperOS 系统"
         }
+
+    val vivosystemversion get() = when{
+        isVivo -> "${getSystemProperties("ro.vivo.os.build.display.id")}  ${getSystemProperties("ro.build.version.bbk")}"
+        else -> "Android ${Build.VERSION.RELEASE} SDK ${Build.VERSION.SDK_INT}"
+    }
+
+    val systemversion get() = when{
+        isMIOS -> miuisystemFullVersion
+        isVivo -> vivosystemversion
+        else -> ""
+    }
 }
         

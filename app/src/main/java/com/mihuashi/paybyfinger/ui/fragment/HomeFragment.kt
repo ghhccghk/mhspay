@@ -70,10 +70,10 @@ class HomeFragment : Fragment() {
 
             // 信息卡片设置
             deviceValue.text = "$getPhoneName (${Build.DEVICE})"
-            if (config.isNotMIUI){
+            if (config.systemversion == ""){
                 systemversionValue.text = "Android ${Build.VERSION.RELEASE} SDK ${Build.VERSION.SDK_INT}"
             } else {
-                systemversionValue.text = "Android ${Build.VERSION.RELEASE} SDK ${Build.VERSION.SDK_INT} \n${config.systemFullVersion}"
+                systemversionValue.text = "Android ${Build.VERSION.RELEASE} SDK ${Build.VERSION.SDK_INT} \n${config.systemversion}"
             }
             versionLabelValue.text = BuildConfig.VERSION_NAME
             versionCodeValue.text = BuildConfig.VERSION_CODE.toString()
