@@ -7,7 +7,7 @@
 [![GitHub Fork](https://img.shields.io/github/forks/ghhccghk/mhspay?style=flat-square)](https://github.com/ghhccghk/mhspay/network/members)
 ![GitHub Star](https://img.shields.io/github/stars/ghhccghk/mhspay.svg?style=social)
 
-
+# 不要更新新版本，新版本有反hook，目前支持到 7.21.0
 ## 这是什么东西？
 
 #### 这是一个Xposed模块（目前仅支持LSPosed），通过Hook米画师的密码输入接口并在指纹识别正确后填入密码来实现指纹识别
