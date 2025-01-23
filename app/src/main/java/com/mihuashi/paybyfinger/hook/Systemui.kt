@@ -8,6 +8,7 @@ import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinde
 import com.mihuashi.paybyfinger.BaseHook
 import com.mihuashi.paybyfinger.PACKAGE_NAME_HOOKED
 import com.mihuashi.paybyfinger.tools.ConfigTools.config
+import com.mihuashi.paybyfinger.tools.SystemConfig
 import de.robv.android.xposed.XposedHelpers
 
 object Systemui : BaseHook() {
@@ -18,7 +19,7 @@ object Systemui : BaseHook() {
     override fun init() {
         // 拿到插件的classloader
 
-        if (config.isMIUI) {
+        if (SystemConfig.isMIUI) {
         loadClass("com.android.systemui.shared.plugins.PluginInstance").methodFinder()
             .first { name == "loadPlugin" }.createHook {
                 after { p0 ->

@@ -44,6 +44,8 @@ import com.mihuashi.paybyfinger.hook.HookTool.Companion.isSixDigitNumber
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.showMaterialPasswordDialog
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.unregisterReceiver
 import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
+import com.mihuashi.paybyfinger.tools.SystemConfig
+import com.mihuashi.paybyfinger.tools.SystemConfig.Companion.systemversion
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
@@ -187,6 +189,7 @@ object Hook : BaseHook() {
                                 // 检查 fragmentInstance 是否为 MineSettingEmployerFragment 的实例
                                 if (fragmentInstance::class.java.name == "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment") {
                                     Log.i("名称 $fragmentInstance")
+                                    Log.i("名称hidesetting ${xConfig.hidesetting}")
                                     if (!xConfig.hidesetting){
                                         executeCustomFunction(fragmentInstance, classLoader)
                                     }
@@ -619,7 +622,7 @@ object Hook : BaseHook() {
         ///////开关构建完成
         frameLayout.addView(roundedRelativeLayout)
         /** 小米焦点选项显示*/
-        if (xConfig.isMIOS){
+        if (SystemConfig.isMIOS){
             frameLayouta.addView(roundedRelativeLayouta)
         }
 

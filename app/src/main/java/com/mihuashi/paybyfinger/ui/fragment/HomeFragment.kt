@@ -21,6 +21,7 @@ import cn.xiaowine.xkt.Tool.toUpperFirstCaseAndLowerOthers
 import com.google.android.material.color.MaterialColors
 import com.mihuashi.paybyfinger.hook.Tool.getPhoneName
 import com.mihuashi.paybyfinger.tools.ConfigTools.config
+import com.mihuashi.paybyfinger.tools.SystemConfig
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -70,10 +71,10 @@ class HomeFragment : Fragment() {
 
             // 信息卡片设置
             deviceValue.text = "$getPhoneName (${Build.DEVICE})"
-            if (config.systemversion == ""){
+            if (SystemConfig.systemversion == ""){
                 systemversionValue.text = "Android ${Build.VERSION.RELEASE} SDK ${Build.VERSION.SDK_INT}"
             } else {
-                systemversionValue.text = "Android ${Build.VERSION.RELEASE} SDK ${Build.VERSION.SDK_INT} \n${config.systemversion}"
+                systemversionValue.text = "Android ${Build.VERSION.RELEASE} SDK ${Build.VERSION.SDK_INT} \n${SystemConfig.systemversion}"
             }
             versionLabelValue.text = BuildConfig.VERSION_NAME
             versionCodeValue.text = BuildConfig.VERSION_CODE.toString()
