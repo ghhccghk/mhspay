@@ -6,12 +6,13 @@ import org.jetbrains.kotlin.konan.properties.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
 }
 
 
 android {
     namespace = "com.mihuashi.paybyfinger"
-    compileSdk = 34
+    compileSdk = 36
     val buildTime = System.currentTimeMillis()
     val localProperties = Properties()
     if (rootProject.file("local.properties").canRead())
@@ -21,7 +22,6 @@ android {
     defaultConfig {
         applicationId = "com.mihuashi.paybyfinger"
         minSdk = 28
-        targetSdk = 34
         versionCode = 4
         versionName = "1.0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -61,14 +61,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "1.8"
-    }
-    buildFeatures {
-        compose = true
+        jvmTarget = "17"
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -84,6 +81,7 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+        compose = true
     }
     kotlin.jvmToolchain(21)
     applicationVariants.all {

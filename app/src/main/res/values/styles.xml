@@ -9,7 +9,7 @@
     <style name="Theme.MyApplication" parent="Theme.Material3.DynamicColors.DayNight">
         <item name="android:windowTranslucentNavigation">true</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="colorPrimaryVariant" >@color/material_grey_300</item>
+        <item name="colorPrimaryVariant" tools:ignore="PrivateResource">@color/material_grey_300</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
