@@ -25,6 +25,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.github.kyuubiran.ezxhelper.Log
+import com.hyperfocus.api.FocusApi
 import org.json.JSONObject
 import java.security.KeyStore
 import java.text.SimpleDateFormat
@@ -400,35 +401,11 @@ class HookTool {
                     context, 0, launchIntent, PendingIntent.FLAG_MUTABLE
                 )
             )
-            val param = JSONObject()
-            val param_v2 = JSONObject()
-            val baseInfo = JSONObject()
-            val picInfo = JSONObject()
-            baseInfo.put("type", 2)
-            baseInfo.put("title", "付款通知")
-            baseInfo.put("content",text)
-            picInfo.put("type", 2)
-            picInfo.put("pic","miui.focus.pic_ticker")
-            param_v2.put("baseInfo", baseInfo)
-            param_v2.put("picInfo", picInfo)
-            param_v2.put("ticker", text)
-            param_v2.put("tickerPic", "miui.focus.pic_ticker")
-            param_v2.put("tickerPicDark", "miui.focus.pic_ticker_dark")
-            param_v2.put("updatable",true)
-            param_v2.put("showSmallIcon",true)
-
-            param.put("param_v2", param_v2)
-            param.put("scene","templateRevertProgressScene")
-            val bundle = Bundle()
-            bundle.putString("miui.focus.param", param.toString())
-            val bundle3 = Bundle()
-            bundle3.putParcelable(
-                "miui.focus.pic_ticker", Icon.createWithBitmap(bitmap)
+            val bundle = FocusApi.sendFocus(
+                ticker = "付款通知",
+                content = text,
+                picticker = Icon.createWithBitmap(bitmap)
             )
-            bundle3.putParcelable(
-                "miui.focus.pic_ticker_dark", Icon.createWithBitmap(bitmap)
-            )
-            bundle.putBundle("miui.focus.pics", bundle3)
             builder.addExtras(bundle)
             val notification = builder.build()
             (context.getSystemService("notification") as NotificationManager).notify(
@@ -452,7 +429,7 @@ class HookTool {
          * @param context 为应用的context */
         @SuppressLint("NotificationPermission")
         fun cancelNotification(context: Context) {
-            (context.getSystemService("notification") as NotificationManager).cancel(CHANNEL_ID.hashCode())
+                (context.getSystemService("notification") as NotificationManager).cancel(CHANNEL_ID.hashCode())
         }
 
         /** 注销广播 */

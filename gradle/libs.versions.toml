@@ -18,6 +18,7 @@ material = "1.13.0"
 navigation = "2.9.4"
 shadowGradlePlugin = "9.1.0"
 firebaseDatabaseKtx = "21.0.0"
+hyperfocusapi = "1.7"
 
 [libraries]
 androidx-biometric-ktx = { module = "androidx.biometric:biometric-ktx", version.ref = "biometricKtx" }
@@ -49,6 +50,7 @@ androidx-navigation-fragment = { group = "androidx.navigation", name = "navigati
 modernandroidpreferences = { module = "de.maxr1998:modernandroidpreferences", version = "2.3.2" }
 androidx-navigation-ui-ktx = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigation" }
 firebase-database-ktx = { group = "com.google.firebase", name = "firebase-database-ktx", version.ref = "firebaseDatabaseKtx" }
+hyperfocusapi = { module = "com.github.ghhccghk:HyperFocusApi", version.ref = "hyperfocusapi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

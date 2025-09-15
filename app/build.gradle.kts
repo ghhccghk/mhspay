@@ -126,4 +126,5 @@ dependencies {
     implementation(libs.androidx.biometric.ktx)
     implementation(libs.cardSlider)
     implementation(libs.modernandroidpreferences)
+    implementation(libs.hyperfocusapi)
 }
