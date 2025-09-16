@@ -26,6 +26,7 @@ import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.github.kyuubiran.ezxhelper.Log
 import com.hyperfocus.api.FocusApi
+import com.hyperfocus.api.IslandApi
 import org.json.JSONObject
 import java.security.KeyStore
 import java.text.SimpleDateFormat
@@ -401,9 +402,30 @@ class HookTool {
                     context, 0, launchIntent, PendingIntent.FLAG_MUTABLE
                 )
             )
+            val bigIslandArea = IslandApi.BigIslandArea(
+                imageTextInfoLeft = IslandApi.ImageTextInfo(
+                    picInfo = IslandApi.PicInfo(
+                        pic = "miui.focus.pic_ticker"
+                    ),
+                    textInfo = IslandApi.TextInfo(title = "付款通知")
+                ),
+                imageTextInfoRight = IslandApi.ImageTextInfo(
+                    textInfo = IslandApi.TextInfo(title = text),
+                    type = 2
+                )
+            )
+            val island = IslandApi.IslandTemplate(
+                bigIslandArea = bigIslandArea,
+                smallIslandArea = IslandApi.SmallIslandArea(
+                    picInfo = IslandApi.PicInfo(
+                        pic = "miui.focus.pic_ticker"
+                    )
+                )
+            )
             val bundle = FocusApi.sendFocus(
-                ticker = "付款通知",
-                content = text,
+                title = "付款通知",
+                ticker = text,
+                island = island,
                 picticker = Icon.createWithBitmap(bitmap)
             )
             builder.addExtras(bundle)
