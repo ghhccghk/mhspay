@@ -54,7 +54,6 @@ import de.robv.android.xposed.XposedHelpers.findClass
 
 object Hook : BaseHook() {
 
-    private var isReceiverRegistered: Boolean = false
     override val name: String = "米画师hook"
     var savedDialogObject: Any? = null // 用来保存对象
     private var rmb: Int = 0  // 用来保存对象
@@ -66,7 +65,7 @@ object Hook : BaseHook() {
             val result = intent?.getBooleanExtra("result", false) ?: false
             val errorMessage = intent?.getStringExtra("error_message")
             val time = intent?.getLongExtra("timestamp", 0) as Long
-            val pay = intent.getStringExtra("paytime") as String
+            val pay = intent.getStringExtra("paytime")?: ""
             val fullClassName = context?.javaClass?.name
             val miswitch = sharedPreferences.getBoolean("miswitch", false)
             if (BuildConfig.DEBUG) {
@@ -95,19 +94,22 @@ object Hook : BaseHook() {
                     if (paytime == pay && pass != null ) {
                         if (isSixDigitNumber(pass)){
                             method?.invoke(savedDialogObject, pass)
+                            context.unregisterReceiver(this)
                         } else {
                             Toast.makeText(
                                 context,
                                 "密码不是六位，无法认证",
                                 Toast.LENGTH_SHORT
                             ).show()
+                            context.unregisterReceiver(this)
                         }
                     } else {
                         Toast.makeText(
                             context,
-                            "校验失败，无法认证",
+                            "校验失败，无法认证，或者是测试调用",
                             Toast.LENGTH_SHORT
                         ).show()
+                        context.unregisterReceiver(this)
                     }
                 } else {
                     Toast.makeText(
@@ -115,11 +117,11 @@ object Hook : BaseHook() {
                         "解密失败，无法认证",
                         Toast.LENGTH_SHORT
                     ).show()
+                    context?.unregisterReceiver(this)
                 }
                 if (miswitch) {
                     context?.let { it1 -> HookTool.cancelNotification(it1) }
                 }
-                isReceiverRegistered = true
             } else {
                 Log.i(
                     "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${
@@ -135,7 +137,7 @@ object Hook : BaseHook() {
                     }",
                     Toast.LENGTH_SHORT
                 ).show()
-                isReceiverRegistered = true
+                context?.unregisterReceiver(this)
             }
             if (miswitch) {
                 context?.let { it1 -> HookTool.cancelNotification(it1) }
@@ -214,14 +216,11 @@ object Hook : BaseHook() {
                                     }
                                     // 保存对象
                                     savedDialogObject = dialogInstance
-                                    if (!isReceiverRegistered) {
                                         // 注册广播接收器
                                         context.registerReceiver(
                                             resultReceiver,
                                             IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT")
                                         )
-                                        isReceiverRegistered = true  // 标记接收器已注册
-                                    }
                                     rmb = amount
                                     if (BuildConfig.DEBUG) {
                                         Log.i("付的多少钱：$amount")
@@ -251,19 +250,6 @@ object Hook : BaseHook() {
 
                             }
                         }
-
-                    loadClass("com.qixin.mihuas.widgets.modal.base.BaseDialog\$SafetyDialog",classLoader).methodFinder()
-                        .first{ name == "dismiss"}
-                        .createHook {
-                            after {
-                                if (isReceiverRegistered) {
-                                    Log.i("已经注销接收器")
-                                    unregisterReceiver(context,resultReceiver)
-                                    isReceiverRegistered = false
-                                }
-                            }
-                        }
-
                 }
             }
         }
@@ -544,6 +530,13 @@ object Hook : BaseHook() {
             )
             //启动 BiometricAuthActivity
             context.startActivity(serviceIntent)
+
+            // 注册广播接收器
+            context.registerReceiver(
+                resultReceiver,
+                IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT")
+            )
+
         }
 
         //////// 开关构建

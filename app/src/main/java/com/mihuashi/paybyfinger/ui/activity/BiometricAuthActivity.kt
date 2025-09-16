@@ -68,11 +68,18 @@ class BiometricAuthActivity : FragmentActivity() {
             resultIntent.putExtra("timestamp", System.currentTimeMillis())
             resultIntent.putExtra("paytime", paytime) // 回传启动时间校验
             // 认证成功
-            val resultIntenta = Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
-                putExtra("result", true)
-                putExtra("error_message", "null")
-                putExtra("timestamp", System.currentTimeMillis())
-                putExtra("paytime", paytime) // 回传启动时间校验
+            val resultIntenta = if (paytime != "") {
+                Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
+                    putExtra("result", true)
+                    putExtra("error_message", "认证成功")
+                    putExtra("timestamp", System.currentTimeMillis())
+                    putExtra("paytime", paytime) // 回传启动时间校验
+                }
+            } else {
+                Intent("com.mihuashi.paybyfinger.AUTH_RESULT").apply {
+                    putExtra("result", false)
+                    putExtra("error_message", "认证成功")
+                }
             }
             sendBroadcast(resultIntenta) // 发送广播
             setResult(Activity.RESULT_OK,resultIntent)
