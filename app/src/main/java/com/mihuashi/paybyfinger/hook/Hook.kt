@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import cn.xiaowine.xkt.Tool.isNotNull
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClassOrNull
+import com.github.kyuubiran.ezxhelper.EzXHelper.classLoader
 import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createHook
 import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinder
@@ -226,7 +227,7 @@ object Hook : BaseHook() {
                                         Log.i("付的多少钱：$amount")
                                     }
                                     if (miswitch) {
-                                        HookTool.sendNotification("支付:$amount 元", context)
+                                        HookTool.sendNotification("支付:$amount" + "元", context)
                                     }
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         startFingerprintAuthentication()  // 启动指纹验证
@@ -258,7 +259,6 @@ object Hook : BaseHook() {
                                 if (isReceiverRegistered) {
                                     Log.i("已经注销接收器")
                                     unregisterReceiver(context,resultReceiver)
-                                    Toast.makeText(context,"已经注销接收器",Toast.LENGTH_SHORT).show()
                                     isReceiverRegistered = false
                                 }
                             }
@@ -284,7 +284,7 @@ object Hook : BaseHook() {
                     Log.i("Xposed 成功获取 rootView")
                     Log.i("rootview 为 ${rootView.accessibilityClassName}")
                 }
-                // 使用反射加载 MineSettingItemView 类
+                // 使用查找加载 MineSettingItemView 类
                 val mineSettingItemViewClass = findClass(
                     "com.qixin.mihuas.module.main.mine.widget.MineSettingItemView",
                     classLoader
@@ -440,6 +440,7 @@ object Hook : BaseHook() {
 
         val newItemView = XposedHelpers.newInstance(viewa, context) as ViewGroup
         val setpassword = XposedHelpers.newInstance(viewa, context) as ViewGroup
+        val testView = XposedHelpers.newInstance(viewa, context) as ViewGroup
 
         // 创建带有指定 style 的上下文，米画师默认开关样式
         val switchNormal = getresId(resources, "SwitchNormal", "style")
@@ -494,6 +495,13 @@ object Hook : BaseHook() {
         XposedHelpers.setIntField(setpassword, "iconRes", svg_icon_install_manage)
         XposedHelpers.callMethod(setpassword, "componentInitialize")
 
+        /** 设置 label 和 icon
+         * newItemView 为 MineSettingItemView */
+        XposedHelpers.setObjectField(testView, "label", "测试调用")
+        XposedHelpers.setIntField(testView, "iconRes", svg_icon_install_manage)
+        XposedHelpers.callMethod(testView, "componentInitialize")
+
+
         val frameLayout = FrameLayout(context).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -516,12 +524,26 @@ object Hook : BaseHook() {
         //newItemView.id = 0x7f090edf// 使用资源 ID
         newItemView.layoutParams = layoutParamsaa
         setpassword.layoutParams = layoutParamsaa
+        testView.layoutParams = layoutParamsaa
         newItemView.setOnClickListener {
             Toast.makeText(context, "模块版本号为 ${BuildConfig.VERSION_NAME}", Toast.LENGTH_SHORT)
                 .show()
         }
         setpassword.setOnClickListener {
             showMaterialPasswordDialog(bctivity)
+        }
+        testView.setOnClickListener {
+            val serviceIntent = Intent()
+            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)// 添加此标志
+            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+            serviceIntent.setComponent(
+                ComponentName(
+                    "com.mihuashi.paybyfinger",
+                    "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
+                )
+            )
+            //启动 BiometricAuthActivity
+            context.startActivity(serviceIntent)
         }
 
         //////// 开关构建
@@ -633,6 +655,7 @@ object Hook : BaseHook() {
         if (allswitch) {
             roundedLinearLayout.addView(setpassword) //添加设置密码模块
         }
+        roundedLinearLayout.addView(testView) //添加测试模块
 
         val linearLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
