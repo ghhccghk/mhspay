@@ -145,7 +145,7 @@ object Hook : BaseHook() {
         }
     }
 
-    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    @SuppressLint("UnspecifiedRegisterReceiverFlag", "SuspiciousIndentation")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun init() {
         super.init()
@@ -532,9 +532,11 @@ object Hook : BaseHook() {
             context.startActivity(serviceIntent)
 
             // 注册广播接收器
-            context.registerReceiver(
+            ContextCompat.registerReceiver(
+                context,
                 resultReceiver,
-                IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT")
+                IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT"),
+                ContextCompat.RECEIVER_EXPORTED
             )
 
         }
