@@ -5,6 +5,7 @@ package com.mihuashi.paybyfinger.hook
 import android.R
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -27,6 +28,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import cn.xiaowine.xkt.Tool.isNotNull
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
@@ -48,8 +50,11 @@ import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
 import com.mihuashi.paybyfinger.tools.SystemConfig
 import com.mihuashi.paybyfinger.tools.SystemConfig.Companion.systemversion
 import de.robv.android.xposed.XC_MethodHook
+import de.robv.android.xposed.XC_MethodReplacement
+import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
+import kotlin.collections.get
 
 
 object Hook : BaseHook() {
@@ -153,106 +158,109 @@ object Hook : BaseHook() {
             it.methodFinder().first { name == "attachBaseContext" }.createHook {
                 after { param ->
                     val context = param.args[0] as Context
-                    val classLoader = context.classLoader
-                    sharedPreferences = context.getSharedPreferences(
-                        "mhshooksetting",
-                        Context.MODE_PRIVATE
-                    ) // 用来保存设置
-
-                    val serviceIntent = Intent()
-                    val InputPayingPasswordDialogClass = loadClass("com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog", classLoader)
-
-                    // 创建 Intent 启动指纹服务
-                    fun startFingerprintAuthentication() {
-                        paytime = System.currentTimeMillis().toString()
-                        serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)// 添加此标志
-                        serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
-                        serviceIntent.putExtra("open", true)
-                        serviceIntent.putExtra("rmb", rmb)
-                        serviceIntent.putExtra("paytime", paytime)
-                        serviceIntent.setComponent(
-                            ComponentName(
-                                "com.mihuashi.paybyfinger",
-                                "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
-                            )
-                        )
-                        //启动 BiometricAuthActivity
-                        context.startActivity(serviceIntent)
-
-                    }
-
-                    loadClass(
-                        "com.qixin.mihuas.core.mvvm.v.BaseFragment",
-                        classLoader
-                    ).methodFinder()
-                        .first { name == "onCreateView" }
-                        .createHook {
-                            after { it ->
-                                val fragmentInstance = it.thisObject
-                                // 检查 fragmentInstance 是否为 MineSettingEmployerFragment 的实例
-                                if (fragmentInstance::class.java.name == "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment") {
-                                    Log.i("名称 $fragmentInstance")
-                                    Log.i("名称hidesetting ${xConfig.hidesetting}")
-                                    if (!xConfig.hidesetting){
-                                        executeCustomFunction(fragmentInstance, classLoader)
-                                    }
-
-                                }
-                            }
-                        }
-                    InputPayingPasswordDialogClass.methodFinder()
-                        .first { name == "setPayingPasswordContent" }
-                        .createHook {
-                            after { param ->
-                                // 检查接收器是否已经注册
-                                // 获取当前的 InputPayingPasswordDialog 实例
-                                val allswitch = sharedPreferences.getBoolean("allswitch", false)
-                                val miswitch = sharedPreferences.getBoolean("miswitch", false)
-                                val amount = param.args[1] as Int
-                                val dialogInstance = param.thisObject
-                                if (allswitch) {
-                                    if (BuildConfig.DEBUG) {
-                                        Log.i("对象 ：$dialogInstance")
-                                    }
-                                    // 保存对象
-                                    savedDialogObject = dialogInstance
-                                        // 注册广播接收器
-                                        context.registerReceiver(
-                                            resultReceiver,
-                                            IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT")
-                                        )
-                                    rmb = amount
-                                    if (BuildConfig.DEBUG) {
-                                        Log.i("付的多少钱：$amount")
-                                    }
-                                    if (miswitch) {
-                                        HookTool.sendNotification("支付:$amount" + "元", context)
-                                    }
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        startFingerprintAuthentication()  // 启动指纹验证
-                                    }, 5)
-                                }
-                            }
-                        }
-
-                    InputPayingPasswordDialogClass.methodFinder()
-                        .first { name == "onPasswordEdited" }
-                        .createHook {
-                            after { param ->
-                                // 检查接收器是否已经注册
-                                val allswitch = sharedPreferences.getBoolean("allswitch", false)
-                                if (allswitch) {
-                                    val password = param.args[0] as String
-                                    if (BuildConfig.DEBUG) {
-                                        Log.i("password : $password")
-                                    }
-                                }
-
-                            }
-                        }
+                    initHook_Code(context)
                 }
             }
         }
+    }
+    fun initHook_Code(context: Context){
+         val classLoader = context.classLoader
+        sharedPreferences = context.getSharedPreferences(
+            "mhshooksetting",
+            Context.MODE_PRIVATE
+        ) // 用来保存设置
+
+        val serviceIntent = Intent()
+        val InputPayingPasswordDialogClass = loadClass("com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog", classLoader)
+
+        // 创建 Intent 启动指纹服务
+        fun startFingerprintAuthentication() {
+            paytime = System.currentTimeMillis().toString()
+            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)// 添加此标志
+            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+            serviceIntent.putExtra("open", true)
+            serviceIntent.putExtra("rmb", rmb)
+            serviceIntent.putExtra("paytime", paytime)
+            serviceIntent.setComponent(
+                ComponentName(
+                    "com.mihuashi.paybyfinger",
+                    "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
+                )
+            )
+            //启动 BiometricAuthActivity
+            context.startActivity(serviceIntent)
+
+        }
+
+        loadClass(
+            "com.qixin.mihuas.core.mvvm.v.BaseFragment",
+            classLoader
+        ).methodFinder()
+            .first { name == "onCreateView" }
+            .createHook {
+                after { it ->
+                    val fragmentInstance = it.thisObject
+                    // 检查 fragmentInstance 是否为 MineSettingEmployerFragment 的实例
+                    if (fragmentInstance::class.java.name == "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment") {
+                        Log.i("名称 $fragmentInstance")
+                        Log.i("名称hidesetting ${xConfig.hidesetting}")
+                        if (!xConfig.hidesetting){
+                            executeCustomFunction(fragmentInstance, classLoader)
+                        }
+
+                    }
+                }
+            }
+        InputPayingPasswordDialogClass.methodFinder()
+            .first { name == "setPayingPasswordContent" }
+            .createHook {
+                after { param ->
+                    // 检查接收器是否已经注册
+                    // 获取当前的 InputPayingPasswordDialog 实例
+                    val allswitch = sharedPreferences.getBoolean("allswitch", false)
+                    val miswitch = sharedPreferences.getBoolean("miswitch", false)
+                    val amount = param.args[1] as Int
+                    val dialogInstance = param.thisObject
+                    if (allswitch) {
+                        if (BuildConfig.DEBUG) {
+                            Log.i("对象 ：$dialogInstance")
+                        }
+                        // 保存对象
+                        savedDialogObject = dialogInstance
+                        // 注册广播接收器
+                        context.registerReceiver(
+                            resultReceiver,
+                            IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT")
+                        )
+                        rmb = amount
+                        if (BuildConfig.DEBUG) {
+                            Log.i("付的多少钱：$amount")
+                        }
+                        if (miswitch) {
+                            HookTool.sendNotification("支付:$amount" + "元", context)
+                        }
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            startFingerprintAuthentication()  // 启动指纹验证
+                        }, 5)
+                    }
+                }
+            }
+
+        InputPayingPasswordDialogClass.methodFinder()
+            .first { name == "onPasswordEdited" }
+            .createHook {
+                after { param ->
+                    // 检查接收器是否已经注册
+                    val allswitch = sharedPreferences.getBoolean("allswitch", false)
+                    if (allswitch) {
+                        val password = param.args[0] as String
+                        if (BuildConfig.DEBUG) {
+                            Log.i("password : $password")
+                        }
+                    }
+
+                }
+            }
     }
 
     @SuppressLint("ResourceType")
@@ -291,7 +299,6 @@ object Hook : BaseHook() {
                         XposedHelpers.setObjectField(newItemView, "label", "指纹认证")
                         XposedHelpers.setIntField(newItemView, "iconRes", svg_icon_install_manage)
                         XposedHelpers.callMethod(newItemView, "setCornerSide", 1)
-                        XposedHelpers.callMethod(newItemView, "componentInitialize")
 
                         // 设置布局参数，避免重叠，使用WRAP_CONTENT
                         val layoutParams = FrameLayout.LayoutParams(
@@ -301,32 +308,90 @@ object Hook : BaseHook() {
                         //newItemView.id = 0x7f090edf// 使用资源 ID
                         newItemView.layoutParams = layoutParams
 
-                        newItemView.setOnClickListener {
-                            val cll = loadClass("com.qixin.mihuas.base.provider.ContainerActivity")
-                            val intent = Intent(context, cll)
-                            val containerArgsClass = findClass(
-                                "com.qixin.mihuas.router.params.ContainerArgs",
-                                classLoader
-                            )
-                            //val classcontainerExtras = findClass("com.qixin.mihuas.router.params.ContainerExtras",classLoader)
-                            //val containerExtras = XposedHelpers.newInstance(classcontainerExtras,null,null,null,null,2131099708,2131099709,null,null,2131099708) as Parcelable?
-                            val containerArgs = XposedHelpers.newInstance(
-                                containerArgsClass,
-                                "指纹认证",
-                                "com.qixin.mihuas.module.setting.privacy.fragment.PrivacySettingFragment",
-                                null,
-                                false
-                            ) as Parcelable?
-                            val bundle = Bundle()
-                            bundle.putParcelable("extraArgs", null)
-                            bundle.putParcelable(
-                                "args",
-                                containerArgs
-                            )  // 将 ContainerArgs 放入 Bundle
-                            intent.putExtras(bundle)
-                            context.startActivity(intent)
-                            uitext = true
-                            addui(classLoader, context)
+                        newItemView.setOnClickListener { view ->
+                            val ctx = view.context
+
+                            // 1. 创建主容器 (垂直排列)
+                            val rootLayout = android.widget.LinearLayout(ctx).apply {
+                                orientation = android.widget.LinearLayout.VERTICAL
+                                val padding = (20 * ctx.resources.displayMetrics.density).toInt()
+                                setPadding(padding, padding, padding, padding)
+                            }
+
+                            // --- 辅助函数：快速创建列表样式的“行” ---
+                            fun addMenuRow(text: String, onClick: () -> Unit) {
+                                val tv = android.widget.TextView(ctx).apply {
+                                    this.text = text
+                                    textSize = 16f
+                                    setPadding(0, 30, 0, 30)
+                                    setTextColor(android.graphics.Color.WHITE)
+                                    // 设置点击效果（波纹或变色）
+                                    val outValue = android.util.TypedValue()
+                                    ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+                                    setBackgroundResource(outValue.resourceId)
+                                    setOnClickListener { onClick() }
+                                }
+                                rootLayout.addView(tv)
+                            }
+
+                            // 2. 添加之前的逻辑项
+
+                            // 0 -> 模块版本号
+                            addMenuRow("📦 模块版本号") {
+                                android.widget.Toast.makeText(ctx, "模块版本号为 ${BuildConfig.VERSION_NAME}", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+
+                            // 1 -> 设置密码
+                            addMenuRow("🔑 设置密码") {
+                                showMaterialPasswordDialog(ctx)
+                            }
+
+                            // 2 -> 测试调用 (Intent + 广播)
+                            addMenuRow("🧪 测试调用") {
+                                try {
+                                    val serviceIntent = android.content.Intent().apply {
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_HISTORY)
+                                        component = android.content.ComponentName(
+                                            "com.mihuashi.paybyfinger",
+                                            "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
+                                        )
+                                    }
+                                    ctx.startActivity(serviceIntent)
+
+                                    // 注册广播接收器 (注意：不使用 ContextCompat，改用原生)
+                                    val filter = android.content.IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT")
+                                    // Android 14 (API 34) 强制要求指定 EXPORTED 或 NOT_EXPORTED
+                                    // 0x2 代表 RECEIVER_EXPORTED (在没有 androidx 的情况下直接传常数)
+                                    if (android.os.Build.VERSION.SDK_INT >= 33) {
+                                        ctx.registerReceiver(resultReceiver, filter, 0x2)
+                                    } else {
+                                        ctx.registerReceiver(resultReceiver, filter)
+                                    }
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(ctx, "启动失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+
+                            // 4. 添加 Switch 开关项 (即之前的第3项)
+                            val miSwitch = android.widget.Switch(ctx).apply {
+                                text = "焦点通知金额开关 (小米专用)"
+                                textSize = 16f
+                                setPadding(0, 40, 0, 40)
+                                isChecked = sharedPreferences.getBoolean("miswitch", false)
+
+                                setOnCheckedChangeListener { _, isChecked ->
+                                    sharedPreferences.edit().putBoolean("miswitch", isChecked).apply()
+                                    android.widget.Toast.makeText(ctx, if(isChecked) "已开启" else "已关闭", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            rootLayout.addView(miSwitch)
+
+                            // 5. 弹出对话框
+                            android.app.AlertDialog.Builder(ctx).apply {
+                                setTitle("功能菜单")
+                                setView(rootLayout) // 重点：将容器塞进去
+                                setPositiveButton("完成", null)
+                            }.show()
                         }
 
 
@@ -519,25 +584,7 @@ object Hook : BaseHook() {
             showMaterialPasswordDialog(bctivity)
         }
         testView.setOnClickListener {
-            val serviceIntent = Intent()
-            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)// 添加此标志
-            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
-            serviceIntent.setComponent(
-                ComponentName(
-                    "com.mihuashi.paybyfinger",
-                    "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
-                )
-            )
-            //启动 BiometricAuthActivity
-            context.startActivity(serviceIntent)
 
-            // 注册广播接收器
-            ContextCompat.registerReceiver(
-                context,
-                resultReceiver,
-                IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT"),
-                ContextCompat.RECEIVER_EXPORTED
-            )
 
         }
 
@@ -671,5 +718,36 @@ object Hook : BaseHook() {
         subViewLinearLayout.addView(linearLayout)
         uitext = false
 
+    }
+
+    fun hookSystemExit() {
+        // 1. 拦截 System.exit(int)
+        XposedHelpers.findAndHookMethod(
+            System::class.java,
+            "exit",
+            Int::class.java,
+            object : XC_MethodReplacement() {
+                override fun replaceHookedMethod(param: MethodHookParam): Any? {
+                    val status = param.args[0] as Int
+                    XposedBridge.log("--- 成功拦截 System.exit($status) ---")
+                    return null // 返回 null 阻止原方法执行
+                }
+            }
+        )
+
+        // 2. 拦截 Runtime.halt(int)
+        // 加固方案有时会调用这个更底层的 Java 退出方法
+        XposedHelpers.findAndHookMethod(
+            Runtime::class.java,
+            "halt",
+            Int::class.java,
+            object : XC_MethodReplacement() {
+                override fun replaceHookedMethod(param: MethodHookParam): Any? {
+                    val status = param.args[0] as Int
+                    XposedBridge.log("--- 成功拦截 Runtime.halt($status) ---")
+                    return null
+                }
+            }
+        )
     }
 }

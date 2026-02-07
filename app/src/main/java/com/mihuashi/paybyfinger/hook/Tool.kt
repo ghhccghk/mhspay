@@ -24,7 +24,6 @@ object  Tool {
     }
 
     @SuppressLint("PrivateApi")
-
     fun getSystemProperties(key: String): String {
         val ret: String = try {
             Class.forName("android.os.SystemProperties").getDeclaredMethod("get", String::class.java).invoke(null, key) as String
