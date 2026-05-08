@@ -5,15 +5,15 @@ import org.jetbrains.kotlin.konan.properties.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
 }
+
+val buildTime = System.currentTimeMillis()
 
 
 android {
     namespace = "com.mihuashi.paybyfinger"
     compileSdk = 36
-    val buildTime = System.currentTimeMillis()
     val localProperties = Properties()
     if (rootProject.file("local.properties").canRead())
         localProperties.load(rootProject.file("local.properties").inputStream())
@@ -62,11 +62,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -84,16 +81,14 @@ android {
         buildConfig = true
         compose = true
     }
-    kotlin.jvmToolchain(21)
-    applicationVariants.all {
-        outputs.all {
-            (this as BaseVariantOutputImpl).outputFileName = "Rice Painter Fingerprint Pay-$versionName-$versionCode-$name-$buildTime.apk"
-        }
-    }
     androidResources {
         // 设置额外的资源路径
         additionalParameters ("--allow-reserved-package-id", "--package-id", "0x65")
     }
+}
+
+base {
+    archivesName.set("Rice Painter Fingerprint Pay-${android.defaultConfig.versionName}${android.defaultConfig.versionNameSuffix ?: ""}-$buildTime")
 }
 
 dependencies {
