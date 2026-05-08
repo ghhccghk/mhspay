@@ -1,10 +1,8 @@
 package com.mihuashi.paybyfinger.hook
 
-
 //noinspection SuspiciousImport
 import android.R
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -12,23 +10,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
-import android.graphics.Typeface
+import android.graphics.Color
 import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.Parcelable
+import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CompoundButton
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.RelativeLayout
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.appcompat.view.ContextThemeWrapper
-import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import cn.xiaowine.xkt.Tool.isNotNull
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
@@ -44,710 +38,499 @@ import com.mihuashi.paybyfinger.hook.HookTool.Companion.decryptData
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.findParentByChild
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.getresId
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.isSixDigitNumber
-import com.mihuashi.paybyfinger.hook.HookTool.Companion.showMaterialPasswordDialog
-import com.mihuashi.paybyfinger.hook.HookTool.Companion.unregisterReceiver
 import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
-import com.mihuashi.paybyfinger.tools.SystemConfig
-import com.mihuashi.paybyfinger.tools.SystemConfig.Companion.systemversion
-import de.robv.android.xposed.XC_MethodHook
-import de.robv.android.xposed.XC_MethodReplacement
-import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
-import kotlin.collections.get
 
 
+/**
+ * 米画师 Xposed Hook 模块
+ *
+ * 核心功能：
+ * 1. 拦截支付密码输入对话框，替换为指纹认证流程
+ * 2. 在"个人设置"页面注入"指纹认证"入口菜单
+ * 3. 通过广播接收指纹认证结果，自动填入支付密码
+ *
+ * 通信流程：
+ *   原App弹出密码框 → Hook拦截 → 启动 BiometricAuthActivity（指纹验证）
+ *   → 验证结果通过广播 AUTH_RESULT 返回 → 本模块接收并自动填入密码
+ */
 object Hook : BaseHook() {
 
+    // ==================== 常量定义 ====================
+
+    /** SharedPreferences 文件名 */
+    private const val PREF_NAME = "mhshooksetting"
+
+        /** 总开关：启用/禁用指纹认证 Hook */
+        private const val KEY_ALL_SWITCH = "allswitch"
+
+        /** 小米焦点通知开关：是否在通知栏显示支付金额 */
+        private const val KEY_MI_SWITCH = "miswitch"
+
+        /** 指纹认证结果广播的 Action */
+        private const val AUTH_RESULT_ACTION = "com.mihuashi.paybyfinger.AUTH_RESULT"
+
+        /** 指纹验证 Activity 的类名 */
+        private const val BIOMETRIC_ACTIVITY_CLASS =
+            "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
+
+        /** 本模块的包名 */
+        private const val MODULE_PACKAGE = "com.mihuashi.paybyfinger"
+
+        /** 米画师密码输入对话框类名 */
+        private const val INPUT_PASSWORD_DIALOG_CLASS =
+            "com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog"
+
+        /** 设置页面 Fragment 类名 */
+        private const val SETTING_FRAGMENT_CLASS =
+            "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment"
+
+        /** 设置项自定义 View 类名 */
+        private const val MINE_SETTING_ITEM_VIEW_CLASS =
+            "com.qixin.mihuas.module.main.mine.widget.MineSettingItemView"
+
+    /** 基础 Fragment 类名 */
+    private const val BASE_FRAGMENT_CLASS =
+        "com.qixin.mihuas.core.mvvm.v.BaseFragment"
+
+    // ==================== 模块状态 ====================
+
     override val name: String = "米画师hook"
-    var savedDialogObject: Any? = null // 用来保存对象
-    private var rmb: Int = 0  // 用来保存对象
-    private var uitext: Boolean = false //ui hook 确认
+
+    /** 当前拦截到的支付密码输入对话框实例，用于在指纹认证成功后调用其 onPasswordEdited 方法 */
+    var passwordDialog: Any? = null
+
+    /** 当前支付金额（分） */
+    private var paymentAmount: Int = 0
+
+    /** 指纹认证启动时的时间戳，用于校验广播回调的时效性 */
+    var paymentTimestamp: String = ""
+
+    /** SharedPreferences 配置存储 */
     lateinit var sharedPreferences: SharedPreferences
-    var paytime: String = ""
+
+    // ==================== 广播接收器 ====================
+
+    /**
+     * 指纹认证结果广播接收器
+     *
+     * 接收 BiometricAuthActivity 发送的认证结果广播，处理以下流程：
+     * 认证成功 → 解密本地存储的密码 → 校验时间戳 → 调用密码框的 onPasswordEdited 方法
+     * 认证失败 → 显示失败原因
+     */
     val resultReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val result = intent?.getBooleanExtra("result", false) ?: false
-            val errorMessage = intent?.getStringExtra("error_message")
-            val time = intent?.getLongExtra("timestamp", 0) as Long
-            val pay = intent.getStringExtra("paytime")?: ""
-            val fullClassName = context?.javaClass?.name
-            val miswitch = sharedPreferences.getBoolean("miswitch", false)
-            if (BuildConfig.DEBUG) {
-                Log.i("FingerprintAuth 认证时间：${convertTimestampToTime(time)} $fullClassName")
-            }
-            if (result) {
-                Toast.makeText(
-                    context,
-                    "FingerprintAuth 认证成功，时间：${convertTimestampToTime(time)}",
-                    Toast.LENGTH_SHORT
-                ).show()
-                // 获取你想要调用的方法
-                val method = savedDialogObject?.javaClass?.getDeclaredMethod(
-                    "onPasswordEdited",
-                    String::class.java
-                )
-                if (method != null) {
-                    method.isAccessible = true
-                }  // 确保方法是可以访问的
-                if (context?.let { it1 -> decryptData(alias, it1,true) } == "ok" ) {
-                    val pass = decryptData(alias, context)
-                    if (BuildConfig.DEBUG) {
-                        Log.i("pay: $pay paytime : $paytime")
-                    }
-                    // 调用方法并传递参数
-                    if (paytime == pay && pass != null ) {
-                        if (isSixDigitNumber(pass)){
-                            method?.invoke(savedDialogObject, pass)
-                            context.unregisterReceiver(this)
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "密码不是六位，无法认证",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            context.unregisterReceiver(this)
-                        }
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "校验失败，无法认证，或者是测试调用",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        context.unregisterReceiver(this)
-                    }
+            try {
+                val context = context ?: return
+                val isAuthenticated = intent?.getBooleanExtra("result", false) ?: false
+                val errorMessage = intent?.getStringExtra("error_message")
+                val authTime = intent?.getLongExtra("timestamp", 0) as Long
+                val payFromIntent = intent.getStringExtra("paytime") ?: ""
+
+                val isMiNotificationEnabled = sharedPreferences.getBoolean(KEY_MI_SWITCH, false)
+
+                if (BuildConfig.DEBUG) {
+                    Log.i("指纹认证时间：${convertTimestampToTime(authTime)} ${context.javaClass.name}")
+                }
+
+                if (isAuthenticated) {
+                    handleAuthSuccess(context, payFromIntent)
                 } else {
-                    Toast.makeText(
-                        context,
-                        "解密失败，无法认证",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    context?.unregisterReceiver(this)
+                    handleAuthFailure(context, errorMessage, authTime)
                 }
-                if (miswitch) {
-                    context?.let { it1 -> HookTool.cancelNotification(it1) }
+
+                // 如果启用了小米焦点通知，取消通知栏提示
+                if (isMiNotificationEnabled) {
+                    HookTool.cancelNotification(context)
                 }
-            } else {
-                Log.i(
-                    "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${
-                        convertTimestampToTime(
-                            time
-                        )
-                    }"
-                )
-                Toast.makeText(
-                    context,
-                    "FingerprintAuth 认证失败，错误信息：$errorMessage，时间：${
-                        convertTimestampToTime(time)
-                    }",
-                    Toast.LENGTH_SHORT
-                ).show()
-                context?.unregisterReceiver(this)
-            }
-            if (miswitch) {
-                context?.let { it1 -> HookTool.cancelNotification(it1) }
+            } catch (e: Exception) {
+                Log.e("广播接收器异常: ${e.message}")
             }
         }
     }
+
+    // ==================== 广播处理辅助方法 ====================
+
+    /**
+     * 处理指纹认证成功
+     *
+     * 流程：解密密码 → 校验时间戳匹配 → 校验密码格式（六位数字）→ 调用密码框填入密码
+     */
+    private fun handleAuthSuccess(context: Context, payFromIntent: String) {
+        Toast.makeText(
+            context,
+            "指纹认证成功，时间：${convertTimestampToTime(System.currentTimeMillis())}",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        // 获取密码框的 onPasswordEdited 方法
+        val method = passwordDialog?.javaClass?.getDeclaredMethod(
+            "onPasswordEdited", String::class.java
+        )?.apply { isAccessible = true }
+
+        // 校验密码是否已正确存储
+        if (decryptData(alias, context, true) != "ok") {
+            Toast.makeText(context, "解密失败，无法认证", Toast.LENGTH_SHORT).show()
+            context.unregisterReceiver(resultReceiver)
+            return
+        }
+
+        // 解密获取密码
+        val decryptedPassword = decryptData(alias, context)
+
+        if (BuildConfig.DEBUG) {
+            Log.i("广播pay: $payFromIntent, 当前paytime: $paymentTimestamp")
+        }
+
+        // 校验时间戳是否匹配（防止旧的广播被误处理）
+        if (paymentTimestamp != payFromIntent) {
+            Toast.makeText(context, "校验失败，无法认证，或者是测试调用", Toast.LENGTH_SHORT).show()
+            context.unregisterReceiver(resultReceiver)
+            return
+        }
+
+        // 校验密码格式：必须为六位数字
+        if (!isSixDigitNumber(decryptedPassword)) {
+            Toast.makeText(context, "密码不是六位数字，无法认证", Toast.LENGTH_SHORT).show()
+            context.unregisterReceiver(resultReceiver)
+            return
+        }
+
+        // 所有校验通过，自动填入密码
+        method?.invoke(passwordDialog, decryptedPassword)
+        context.unregisterReceiver(resultReceiver)
+    }
+
+    /**
+     * 处理指纹认证失败
+     */
+    private fun handleAuthFailure(context: Context, errorMessage: String?, authTime: Long) {
+        val timeStr = convertTimestampToTime(authTime)
+        Log.i("指纹认证失败，错误信息：$errorMessage，时间：$timeStr")
+        Toast.makeText(
+            context,
+            "指纹认证失败，错误信息：$errorMessage，时间：$timeStr",
+            Toast.LENGTH_SHORT
+        ).show()
+        context.unregisterReceiver(resultReceiver)
+    }
+
+    // ==================== Hook 初始化 ====================
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag", "SuspiciousIndentation")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun init() {
         super.init()
+
+        // Hook 360加固壳的 attachBaseContext，获取真实 Context 和 ClassLoader
         loadClassOrNull("com.stub.StubApp").isNotNull {
             it.methodFinder().first { name == "attachBaseContext" }.createHook {
                 after { param ->
                     val context = param.args[0] as Context
-                    initHook_Code(context)
+                    initHooksForApp(context)
                 }
             }
         }
     }
-    fun initHook_Code(context: Context){
-         val classLoader = context.classLoader
-        sharedPreferences = context.getSharedPreferences(
-            "mhshooksetting",
-            Context.MODE_PRIVATE
-        ) // 用来保存设置
 
-        val serviceIntent = Intent()
-        val InputPayingPasswordDialogClass = loadClass("com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog", classLoader)
+    /**
+     * 初始化所有 Hook 逻辑
+     *
+     * 在 App 的 attachBaseContext 之后调用，此时 ClassLoader 已就绪。
+     * 注册以下 Hook：
+     * 1. BaseFragment.onCreateView → 注入设置页菜单入口
+     * 2. InputPayingPasswordDialog.setPayingPasswordContent → 拦截支付密码框，启动指纹认证
+     * 3. InputPayingPasswordDialog.onPasswordEdited → 记录密码（调试用）
+     */
+    fun initHooksForApp(context: Context) {
+        val classLoader = context.classLoader
 
-        // 创建 Intent 启动指纹服务
-        fun startFingerprintAuthentication() {
-            paytime = System.currentTimeMillis().toString()
-            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)// 添加此标志
-            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
-            serviceIntent.putExtra("open", true)
-            serviceIntent.putExtra("rmb", rmb)
-            serviceIntent.putExtra("paytime", paytime)
-            serviceIntent.setComponent(
-                ComponentName(
-                    "com.mihuashi.paybyfinger",
-                    "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
-                )
-            )
-            //启动 BiometricAuthActivity
-            context.startActivity(serviceIntent)
+        // 初始化 SharedPreferences 配置
+        sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
 
-        }
+        val passwordDialogClass = loadClass(INPUT_PASSWORD_DIALOG_CLASS, classLoader)
 
-        loadClass(
-            "com.qixin.mihuas.core.mvvm.v.BaseFragment",
-            classLoader
-        ).methodFinder()
+        // ---- Hook 1：拦截设置页面，注入"指纹认证"入口 ----
+        loadClass(BASE_FRAGMENT_CLASS, classLoader)
+            .methodFinder()
             .first { name == "onCreateView" }
             .createHook {
-                after { it ->
-                    val fragmentInstance = it.thisObject
-                    // 检查 fragmentInstance 是否为 MineSettingEmployerFragment 的实例
-                    if (fragmentInstance::class.java.name == "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment") {
-                        Log.i("名称 $fragmentInstance")
-                        Log.i("名称hidesetting ${xConfig.hidesetting}")
-                        if (!xConfig.hidesetting){
-                            executeCustomFunction(fragmentInstance, classLoader)
+                after { param ->
+                    val fragmentInstance = param.thisObject
+                    // 仅在"个人-雇主设置"页面注入入口
+                    if (fragmentInstance::class.java.name == SETTING_FRAGMENT_CLASS) {
+                        if (BuildConfig.DEBUG) {
+                            Log.i("目标Fragment: $fragmentInstance，隐藏设置: ${xConfig.hidesetting}")
                         }
-
+                        if (!xConfig.hidesetting) {
+                            injectSettingsMenuItem(fragmentInstance, classLoader)
+                        }
                     }
                 }
             }
-        InputPayingPasswordDialogClass.methodFinder()
+
+        // ---- Hook 2：拦截支付密码框弹出，启动指纹认证 ----
+        passwordDialogClass
+            .methodFinder()
             .first { name == "setPayingPasswordContent" }
             .createHook {
                 after { param ->
-                    // 检查接收器是否已经注册
-                    // 获取当前的 InputPayingPasswordDialog 实例
-                    val allswitch = sharedPreferences.getBoolean("allswitch", false)
-                    val miswitch = sharedPreferences.getBoolean("miswitch", false)
+                    val allSwitchEnabled = sharedPreferences.getBoolean(KEY_ALL_SWITCH, false)
+                    val isMiNotificationEnabled = sharedPreferences.getBoolean(KEY_MI_SWITCH, false)
                     val amount = param.args[1] as Int
                     val dialogInstance = param.thisObject
-                    if (allswitch) {
-                        if (BuildConfig.DEBUG) {
-                            Log.i("对象 ：$dialogInstance")
-                        }
-                        // 保存对象
-                        savedDialogObject = dialogInstance
-                        // 注册广播接收器
-                        context.registerReceiver(
-                            resultReceiver,
-                            IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT")
-                        )
-                        rmb = amount
-                        if (BuildConfig.DEBUG) {
-                            Log.i("付的多少钱：$amount")
-                        }
-                        if (miswitch) {
-                            HookTool.sendNotification("支付:$amount" + "元", context)
-                        }
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            startFingerprintAuthentication()  // 启动指纹验证
-                        }, 5)
+
+                    if (!allSwitchEnabled) return@after
+
+                    if (BuildConfig.DEBUG) {
+                        Log.i("密码框对象: $dialogInstance")
                     }
+
+                    // 保存密码框实例，用于认证成功后自动填入密码
+                    passwordDialog = dialogInstance
+
+                    // 注册广播接收器，监听指纹认证结果
+                    ContextCompat.registerReceiver(
+                        context,
+                        resultReceiver,
+                        IntentFilter(AUTH_RESULT_ACTION),
+                        ContextCompat.RECEIVER_EXPORTED
+                    )
+
+                    paymentAmount = amount
+
+                    if (BuildConfig.DEBUG) {
+                        Log.i("支付金额: $amount")
+                    }
+
+                    // 小米焦点通知：在通知栏显示支付金额
+                    if (isMiNotificationEnabled) {
+                        HookTool.sendNotification("支付:${amount}元", context)
+                    }
+
+                    // 延迟 5ms 启动指纹验证（等待密码框动画完成）
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        startBiometricAuth(context)
+                    }, 5)
                 }
             }
 
-        InputPayingPasswordDialogClass.methodFinder()
+        // ---- Hook 3：记录密码输入（仅用于调试日志） ----
+        passwordDialogClass
+            .methodFinder()
             .first { name == "onPasswordEdited" }
             .createHook {
                 after { param ->
-                    // 检查接收器是否已经注册
-                    val allswitch = sharedPreferences.getBoolean("allswitch", false)
-                    if (allswitch) {
+                    val allSwitchEnabled = sharedPreferences.getBoolean(KEY_ALL_SWITCH, false)
+                    if (allSwitchEnabled) {
                         val password = param.args[0] as String
                         if (BuildConfig.DEBUG) {
-                            Log.i("password : $password")
+                            Log.i("密码输入: $password")
                         }
                     }
-
                 }
             }
     }
 
-    @SuppressLint("ResourceType")
-    fun executeCustomFunction(fragmentInstance: Any, classLoader: ClassLoader) {
+    // ==================== 指纹认证启动 ====================
+
+    /**
+     * 生成并启动指纹认证 Activity 的 Intent
+     */
+    private fun createBiometricIntent(): Intent {
+        return Intent().apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
+            putExtra("open", true)
+            putExtra("rmb", paymentAmount)
+            putExtra("paytime", paymentTimestamp)
+            setComponent(
+                ComponentName(MODULE_PACKAGE, BIOMETRIC_ACTIVITY_CLASS)
+            )
+        }
+    }
+
+    /**
+     * 启动指纹认证流程
+     *
+     * 记录当前时间戳用于后续校验，然后启动 BiometricAuthActivity
+     */
+    private fun startBiometricAuth(context: Context) {
+        paymentTimestamp = System.currentTimeMillis().toString()
+        val intent = createBiometricIntent()
+        context.startActivity(intent)
+    }
+
+    // ==================== 设置页面菜单注入 ====================
+
+    /**
+     * 在米画师"个人-雇主设置"页面注入"指纹认证"入口
+     *
+     * 通过反射获取页面的 rootView，在已有的设置列表中追加一个
+     * "指纹认证"入口项，点击后弹出功能菜单对话框。
+     */
+    @SuppressLint("ResourceType", "UseSwitchCompatOrMaterialCode")
+    fun injectSettingsMenuItem(fragmentInstance: Any, classLoader: ClassLoader) {
         try {
-            // 获取 rootView 字段的值
+            // 通过反射获取页面根视图和 Context
             val rootView = XposedHelpers.getObjectField(fragmentInstance, "rootView") as? View
             val context = XposedHelpers.callMethod(fragmentInstance, "requireContext") as? Context
-            val resources = context!!.resources
-            val mineSettingEmployerRss = getresId(resources, "mineSettingEmployerRss", "id")
+                ?: return
+            val resources = context.resources
+            val settingContainerId = getresId(resources, "mineSettingEmployerRss", "id")
 
-            if (rootView != null) {
-                // rootView 存在，可以在这里进行进一步操作
-                if (BuildConfig.DEBUG) {
-                    Log.i("Xposed 成功获取 rootView")
-                    Log.i("rootview 为 ${rootView.accessibilityClassName}")
-                }
-                // 使用查找加载 MineSettingItemView 类
-                val mineSettingItemViewClass = findClass(
-                    "com.qixin.mihuas.module.main.mine.widget.MineSettingItemView",
-                    classLoader
-                )
-                val itemView =
-                    rootView.findViewById<ViewGroup>(mineSettingEmployerRss) as FrameLayout
-
-
-                // 检查 rootView 的类型，如果是 FrameLayout，可以添加新的视图
-                if (rootView is FrameLayout) {
-                    if (context != null) {
-                        // 创建 MineSettingItemView 实例，传入 Context
-                        val newItemView =
-                            XposedHelpers.newInstance(mineSettingItemViewClass, context) as View
-                        val svg_icon_install_manage = getresId(resources, "svg_icon_install_manage", "drawable")
-
-                        // 设置 label 和 icon
-                        XposedHelpers.setObjectField(newItemView, "label", "指纹认证")
-                        XposedHelpers.setIntField(newItemView, "iconRes", svg_icon_install_manage)
-                        XposedHelpers.callMethod(newItemView, "setCornerSide", 1)
-
-                        // 设置布局参数，避免重叠，使用WRAP_CONTENT
-                        val layoutParams = FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        //newItemView.id = 0x7f090edf// 使用资源 ID
-                        newItemView.layoutParams = layoutParams
-
-                        newItemView.setOnClickListener { view ->
-                            val ctx = view.context
-
-                            // 1. 创建主容器 (垂直排列)
-                            val rootLayout = android.widget.LinearLayout(ctx).apply {
-                                orientation = android.widget.LinearLayout.VERTICAL
-                                val padding = (20 * ctx.resources.displayMetrics.density).toInt()
-                                setPadding(padding, padding, padding, padding)
-                            }
-
-                            // --- 辅助函数：快速创建列表样式的“行” ---
-                            fun addMenuRow(text: String, onClick: () -> Unit) {
-                                val tv = android.widget.TextView(ctx).apply {
-                                    this.text = text
-                                    textSize = 16f
-                                    setPadding(0, 30, 0, 30)
-                                    setTextColor(android.graphics.Color.WHITE)
-                                    // 设置点击效果（波纹或变色）
-                                    val outValue = android.util.TypedValue()
-                                    ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
-                                    setBackgroundResource(outValue.resourceId)
-                                    setOnClickListener { onClick() }
-                                }
-                                rootLayout.addView(tv)
-                            }
-
-                            // 2. 添加之前的逻辑项
-
-                            // 0 -> 模块版本号
-                            addMenuRow("📦 模块版本号") {
-                                android.widget.Toast.makeText(ctx, "模块版本号为 ${BuildConfig.VERSION_NAME}", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-
-                            // 1 -> 设置密码
-                            addMenuRow("🔑 设置密码") {
-                                showMaterialPasswordDialog(ctx)
-                            }
-
-                            // 2 -> 测试调用 (Intent + 广播)
-                            addMenuRow("🧪 测试调用") {
-                                try {
-                                    val serviceIntent = android.content.Intent().apply {
-                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_HISTORY)
-                                        component = android.content.ComponentName(
-                                            "com.mihuashi.paybyfinger",
-                                            "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
-                                        )
-                                    }
-                                    ctx.startActivity(serviceIntent)
-
-                                    // 注册广播接收器 (注意：不使用 ContextCompat，改用原生)
-                                    val filter = android.content.IntentFilter("com.mihuashi.paybyfinger.AUTH_RESULT")
-                                    // Android 14 (API 34) 强制要求指定 EXPORTED 或 NOT_EXPORTED
-                                    // 0x2 代表 RECEIVER_EXPORTED (在没有 androidx 的情况下直接传常数)
-                                    if (android.os.Build.VERSION.SDK_INT >= 33) {
-                                        ctx.registerReceiver(resultReceiver, filter, 0x2)
-                                    } else {
-                                        ctx.registerReceiver(resultReceiver, filter)
-                                    }
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(ctx, "启动失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }
-
-                            // 4. 添加 Switch 开关项 (即之前的第3项)
-                            val miSwitch = android.widget.Switch(ctx).apply {
-                                text = "焦点通知金额开关 (小米专用)"
-                                textSize = 16f
-                                setPadding(0, 40, 0, 40)
-                                isChecked = sharedPreferences.getBoolean("miswitch", false)
-
-                                setOnCheckedChangeListener { _, isChecked ->
-                                    sharedPreferences.edit().putBoolean("miswitch", isChecked).apply()
-                                    android.widget.Toast.makeText(ctx, if(isChecked) "已开启" else "已关闭", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                            rootLayout.addView(miSwitch)
-
-                            // 5. 弹出对话框
-                            android.app.AlertDialog.Builder(ctx).apply {
-                                setTitle("功能菜单")
-                                setView(rootLayout) // 重点：将容器塞进去
-                                setPositiveButton("完成", null)
-                            }.show()
-                        }
-
-
-                        val parentGroup = findParentByChild(itemView) as LinearLayout
-                        // 添加新视图
-                        parentGroup.addView(newItemView)
-                        //logAllViews(rootView)
-                    }
-                }
-
-            } else {
+            if (rootView == null) {
                 Log.e("Xposed rootView 字段不存在或为空")
+                return
             }
+
+            if (BuildConfig.DEBUG) {
+                Log.i("Xposed 成功获取 rootView: ${rootView.accessibilityClassName}")
+            }
+
+            // 加载米画师自定义的设置项 View 类
+            val settingItemViewClass = findClass(MINE_SETTING_ITEM_VIEW_CLASS, classLoader)
+            val settingContainer = rootView.findViewById<ViewGroup>(settingContainerId) as? FrameLayout
+                ?: return
+
+            if (rootView !is FrameLayout) return
+
+            // 反射创建"指纹认证"设置项 View
+            val newSettingItem = XposedHelpers.newInstance(settingItemViewClass, context) as View
+            val iconResId = getresId(resources, "svg_icon_install_manage", "drawable")
+
+            // 配置设置项的标签、图标和样式
+            XposedHelpers.setObjectField(newSettingItem, "label", "指纹认证")
+            XposedHelpers.setIntField(newSettingItem, "iconRes", iconResId)
+            XposedHelpers.callMethod(newSettingItem, "setCornerSide", 1)
+
+            newSettingItem.layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+
+            // 设置点击事件：弹出功能菜单对话框
+            newSettingItem.setOnClickListener { view ->
+                showFunctionMenuDialog(view.context)
+            }
+
+            // 将新设置项添加到页面设置列表中
+            val parentGroup = findParentByChild(settingContainer) as LinearLayout
+            parentGroup.addView(newSettingItem)
+
         } catch (e: NoSuchFieldError) {
             Log.e("Xposed 找不到 rootView 字段: $e")
         } catch (e: Exception) {
-            Log.e("Xposed 获取 rootView 字段时发生错误: ${e.message}")
+            Log.e("Xposed 注入设置页面时发生错误: ${e.message}")
         }
     }
 
-    @SuppressLint("RestrictedApi", "ResourceType")
-    fun addui(classLoader: ClassLoader, context: Context) {
-        loadClass("com.qixin.mihuas.base.provider.ContainerActivity").methodFinder()
-            .first { name == "initViews" }.createHook {
-            after {
-                val bctivity = it.thisObject as Activity
-                val root = (bctivity.findViewById<ViewGroup>(R.id.content)!!).getChildAt(0) as View
-                ///解决函数被执行时影响其他界面,已经解决了，该代码为获取标题参考
-                //loadClass("com.qixin.mihuas.base.provider.ContainerActivity").methodFinder().first{ name == "initToolbar" }.createHook {
-                //    after{
-                //        // 获取传入的ContainerArgs对象
-                //        val containerArgs: Any = it.args[0]
-                //        try {
-                //            val title = XposedHelpers.callMethod(containerArgs, "getTitle") as String
-                //        } catch (e: NullPointerException) {
-                //            Log.e("Xposed 获取 title 字段时发生错误: ${e.message}")
-                //        }
-                //    }
-                //}
-                // 处理获取到的标题内容
-                //Log.i("标题栏内容: $uitext")
-                if (BuildConfig.DEBUG) {
-                    Log.i("名称 $bctivity")
-                }
-                //logAllViews(childView)
-                if (uitext) {
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        val compatLinearLayout = findParentByChild(root) as LinearLayout
-                        val resources = context.resources
-                        val container = getresId(resources, "container", "id")
-                        val childView = compatLinearLayout.findViewById<LinearLayout>(container)
-                        val subViewLinearLayout = childView.getChildAt(0) as LinearLayout
-                        if (BuildConfig.DEBUG) {
-                            Log.i("界面 ${subViewLinearLayout.javaClass.simpleName}")
-                        }
-                        subViewLinearLayout.removeAllViews()
-                        setui(classLoader, subViewLinearLayout, context, bctivity)
-                    }, 20)
-                }
-            }
-        }
-    }
+    // ==================== 功能菜单对话框 ====================
 
-    @Suppress("DEPRECATION")
-    @SuppressLint("UseCompatLoadingForColorStateLists", "ResourceType")
-    fun setui(
-        classLoader: ClassLoader,
-        subViewLinearLayout: LinearLayout,
-        context: Context,
-        bctivity: Activity
-    ) {
-        val resources = context.resources
-        val allswitch = sharedPreferences.getBoolean("allswitch", false)
-        val miswitch = sharedPreferences.getBoolean("miswitch", false)
-        val nameclass =
-            findClass("com.qixin.mihuas.resource.compat.text.CompatTextView", classLoader)
-        val roundedLinearLayoutclass =
-            findClass("com.qixin.mihuas.resource.widget.RoundedLinearLayout", classLoader)
-        val roundedRelativeLayoutclass =
-            findClass("com.qixin.mihuas.resource.widget.RoundedRelativeLayout", classLoader)
-        val viewa =
-            findClass("com.qixin.mihuas.module.main.mine.widget.MineSettingItemView", classLoader)
-        val switchclass = findClass(
-            "com.qixin.mihuas.resource.widget.text.switchbutton.SwitchButtonView",
-            classLoader
-        )
-
-        val name = XposedHelpers.newInstance(nameclass, context) as TextView
-        val nameone = XposedHelpers.newInstance(nameclass, context) as TextView
-        val nametwo = XposedHelpers.newInstance(nameclass, context) as TextView
-        val roundedRelativeLayout =
-            XposedHelpers.newInstance(roundedRelativeLayoutclass, context) as RelativeLayout
-        val roundedRelativeLayouta =
-            XposedHelpers.newInstance(roundedRelativeLayoutclass, context) as RelativeLayout
-        val roundedLinearLayout =
-            XposedHelpers.newInstance(roundedLinearLayoutclass, context) as LinearLayout
-
-        val newItemView = XposedHelpers.newInstance(viewa, context) as ViewGroup
-        val setpassword = XposedHelpers.newInstance(viewa, context) as ViewGroup
-        val testView = XposedHelpers.newInstance(viewa, context) as ViewGroup
-
-        // 创建带有指定 style 的上下文，米画师默认开关样式
-        val switchNormal = getresId(resources, "SwitchNormal", "style")
-        val themedContext = ContextThemeWrapper(context, switchNormal)
-        val switch = XposedHelpers.newInstance(switchclass, themedContext) as CompoundButton
-        val switcha = XposedHelpers.newInstance(switchclass, themedContext) as CompoundButton
-
-        // 获取资源 ID
-        val colorInfo60 = getresId(resources, "colorInfo60", "color")
-        val colorInfo80 = getresId(resources, "colorInfo80", "color")
-        val txt32 = getresId(resources, "txt_32", "dimen")
-        val dp15 = getresId(resources, "dp_15", "dimen")
-        val interval_normal = getresId(resources, "interval_normal", "dimen")
-        val interval_small = getresId(resources, "interval_small", "dimen")
-        val svg_icon_install_manage = getresId(resources, "svg_icon_install_manage", "drawable")
-
-
-        name.text = "基础设置"
-        name.textSize = 12.0F
-        //name.setTextColor(resources.getColor(colorInfo60))
-        val namecolorStateList = ContextCompat.getColorStateList(context, colorInfo60)
-        name.setTextColor(namecolorStateList)
-        name.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            topMargin = resources.getDimensionPixelSize(interval_small)
-            leftMargin = resources.getDimensionPixelSize(interval_normal)
-        }
-
-        roundedLinearLayout.orientation = LinearLayout.VERTICAL
-        roundedLinearLayout.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            leftMargin = resources.getDimensionPixelSize(interval_normal)  // 设置左侧外边距
-            topMargin = resources.getDimensionPixelSize(interval_small) // 设置顶部外边距
-            rightMargin = resources.getDimensionPixelSize(interval_normal)  // 设置右侧外边距
-            bottomMargin = resources.getDimensionPixelSize(interval_small)  // 设置底部外边距
-        }
-
-
-        /** 设置 label 和 icon
-         * newItemView 为 MineSettingItemView */
-        XposedHelpers.setObjectField(newItemView, "label", "模块版本号")
-        XposedHelpers.setIntField(newItemView, "iconRes", svg_icon_install_manage)
-        XposedHelpers.callMethod(newItemView, "setCornerSide", 0)
-        XposedHelpers.callMethod(newItemView, "componentInitialize")
-
-        /** 设置 label 和 icon 设置 密码输入选项 */
-        XposedHelpers.setObjectField(setpassword, "label", "设置密码")
-        XposedHelpers.setIntField(setpassword, "iconRes", svg_icon_install_manage)
-        XposedHelpers.callMethod(setpassword, "componentInitialize")
-
-        /** 设置 label 和 icon
-         * newItemView 为 MineSettingItemView */
-        XposedHelpers.setObjectField(testView, "label", "测试调用")
-        XposedHelpers.setIntField(testView, "iconRes", svg_icon_install_manage)
-        XposedHelpers.callMethod(testView, "componentInitialize")
-
-
-        val frameLayout = FrameLayout(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        val frameLayouta = FrameLayout(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        // 设置布局参数，避免重叠，使用WRAP_CONTENT
-        val layoutParamsaa = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT
-        )
-        //newItemView.id = 0x7f090edf// 使用资源 ID
-        newItemView.layoutParams = layoutParamsaa
-        setpassword.layoutParams = layoutParamsaa
-        testView.layoutParams = layoutParamsaa
-        newItemView.setOnClickListener {
-            Toast.makeText(context, "模块版本号为 ${BuildConfig.VERSION_NAME}", Toast.LENGTH_SHORT)
-                .show()
-        }
-        setpassword.setOnClickListener {
-            showMaterialPasswordDialog(bctivity)
-        }
-        testView.setOnClickListener {
-
-
-        }
-
-        //////// 开关构建
-        roundedRelativeLayout.setPadding(
-            resources.getDimension(dp15).toInt(),
-            resources.getDimension(dp15).toInt(),
-            resources.getDimension(dp15).toInt(),
-            resources.getDimension(dp15).toInt()
-        )
-
-        //////// 开关构建
-        roundedRelativeLayouta.setPadding(
-            resources.getDimension(dp15).toInt(),
-            resources.getDimension(dp15).toInt(),
-            resources.getDimension(dp15).toInt(),
-            resources.getDimension(dp15).toInt()
-        )
-
-        // 创建文本视图 (CompatTextView)
-        // 设置文本大小
-        nameone.textSize =
-            resources.getDimension(txt32) / context.resources.displayMetrics.scaledDensity
-        nameone.text = "总开关"
-        // 设置文本样式为粗体
-        nameone.setTypeface(null, Typeface.BOLD)
-        // 设置文本颜色
-        //nameone.setTextColor(resources.getColorStateList(colorInfo80))
-        val colorStateList = ContextCompat.getColorStateList(context, colorInfo80)
-        nameone.setTextColor(colorStateList)
-
-
-        // 设置文本大小
-        nametwo.textSize =
-            resources.getDimension(txt32) / context.resources.displayMetrics.scaledDensity
-        nametwo.text = "焦点通知金额开关（仅小米可用）"
-        // 设置文本样式为粗体
-        nametwo.setTypeface(null, Typeface.BOLD)
-        // 设置文本颜色
-        nametwo.setTextColor(colorStateList)
-
-
-        // 设置布局参数：垂直居中
-        val paramsa = RelativeLayout.LayoutParams(
-            RelativeLayout.LayoutParams.WRAP_CONTENT,
-            RelativeLayout.LayoutParams.WRAP_CONTENT
-        )
-        paramsa.addRule(RelativeLayout.CENTER_VERTICAL)
-        nameone.layoutParams = paramsa
-        nametwo.layoutParams = paramsa
-
-
-        val paramsb = RelativeLayout.LayoutParams(
-            RelativeLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT
-        )
-        paramsb.addRule(RelativeLayout.CENTER_VERTICAL)
-        paramsb.addRule(RelativeLayout.ALIGN_PARENT_END)
-        switch.layoutParams = paramsb
-        switch.isChecked = allswitch
-        switch.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                with(sharedPreferences.edit()) {
-                    putBoolean("allswitch", true)
-                    apply()
-                }
-                roundedLinearLayout.addView(setpassword)
-            } else {
-                with(sharedPreferences.edit()) {
-                    putBoolean("allswitch", false)
-                    apply()
-                }
-            }
-        }
-
-        switcha.layoutParams = paramsb
-        switcha.isChecked = miswitch
-        switcha.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                with(sharedPreferences.edit()) {
-                    putBoolean("miswitch", true)
-                    apply()
-                }
-            } else {
-                with(sharedPreferences.edit()) {
-                    putBoolean("miswitch", false)
-                    apply()
-                }
-            }
-        }
-        // 将 TextView 和 SwitchButton 添加到容器中
-        roundedRelativeLayout.addView(nameone)
-        roundedRelativeLayout.addView(switch)
-
-        // 将 TextView 和 SwitchButton 添加到容器中
-        roundedRelativeLayouta.addView(nametwo)
-        roundedRelativeLayouta.addView(switcha)
-
-        ///////开关构建完成
-        frameLayout.addView(roundedRelativeLayout)
-        /** 小米焦点选项显示*/
-        if (SystemConfig.isMIOS){
-            frameLayouta.addView(roundedRelativeLayouta)
-        }
-
-        roundedLinearLayout.addView(name)  // 添加标题文本
-        roundedLinearLayout.addView(newItemView) //添加模块版本号
-        roundedLinearLayout.addView(frameLayout)// 添加开关
-        roundedLinearLayout.addView(frameLayouta)
-        if (allswitch) {
-            roundedLinearLayout.addView(setpassword) //添加设置密码模块
-        }
-        roundedLinearLayout.addView(testView) //添加测试模块
-
-        val linearLayout = LinearLayout(context).apply {
+    /**
+     * 显示功能菜单对话框
+     *
+     * 包含以下功能项：
+     * - 模块版本号：显示当前模块版本
+     * - 总开关：启用/禁用指纹认证 Hook
+     * - 小米焦点通知开关：是否在通知栏显示支付金额
+     * - 测试调用：手动启动指纹认证（不经过支付流程）
+     */
+    private fun showFunctionMenuDialog(context: Context) {
+        // 创建主容器（垂直排列）
+        val menuContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(
-                0, // 左
-                resources.getDimensionPixelSize(interval_normal), // 上
-                0, // 右
-                resources.getDimensionPixelSize(interval_normal) // 下
-            )
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT
-            ).apply {
+            val padding = (20 * context.resources.displayMetrics.density).toInt()
+            setPadding(padding, padding, padding, padding)
+        }
+
+        // ---- 菜单项：模块版本号 ----
+        addMenuItem(menuContainer, "📦 模块版本号") {
+            Toast.makeText(context, "模块版本号为 ${BuildConfig.VERSION_NAME}", Toast.LENGTH_SHORT).show()
+        }
+
+        // ---- 开关项：总开关 ----
+        addSwitchItem(menuContainer, context, "总开关", KEY_ALL_SWITCH)
+
+        // ---- 菜单项：测试调用 ----
+        addMenuItem(menuContainer, "🧪 测试调用") {
+            try {
+                paymentTimestamp = System.currentTimeMillis().toString()
+                val intent = createBiometricIntent()
+                context.startActivity(intent)
+
+                // 注册广播接收器监听认证结果
+                val filter = IntentFilter(AUTH_RESULT_ACTION)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.registerReceiver(resultReceiver, filter, Context.RECEIVER_EXPORTED)
+                } else {
+                    ContextCompat.registerReceiver(
+                        context, resultReceiver, filter, ContextCompat.RECEIVER_EXPORTED
+                    )
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "启动失败: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
 
-        linearLayout.addView(roundedLinearLayout)
-        subViewLinearLayout.addView(linearLayout)
-        uitext = false
+        // ---- 开关项：小米焦点通知 ----
+        addSwitchItem(menuContainer, context, "焦点通知金额开关 (小米专用)", KEY_MI_SWITCH)
 
+        // 弹出对话框
+        AlertDialog.Builder(context).apply {
+            setTitle("功能菜单")
+            setView(menuContainer)
+            setPositiveButton("完成", null)
+        }.show()
     }
 
-    fun hookSystemExit() {
-        // 1. 拦截 System.exit(int)
-        XposedHelpers.findAndHookMethod(
-            System::class.java,
-            "exit",
-            Int::class.java,
-            object : XC_MethodReplacement() {
-                override fun replaceHookedMethod(param: MethodHookParam): Any? {
-                    val status = param.args[0] as Int
-                    XposedBridge.log("--- 成功拦截 System.exit($status) ---")
-                    return null // 返回 null 阻止原方法执行
-                }
-            }
-        )
+    /**
+     * 向容器添加一个可点击的菜单行
+     */
+    private fun addMenuItem(container: LinearLayout, text: String, onClick: () -> Unit) {
+        val textView = TextView(container.context).apply {
+            this.text = text
+            textSize = 16f
+            setPadding(0, 30, 0, 30)
+            setTextColor(Color.WHITE)
+            // 设置点击波纹效果
+            val outValue = TypedValue()
+            container.context.theme.resolveAttribute(
+                R.attr.selectableItemBackground, outValue, true
+            )
+            setBackgroundResource(outValue.resourceId)
+            setOnClickListener { onClick() }
+        }
+        container.addView(textView)
+    }
 
-        // 2. 拦截 Runtime.halt(int)
-        // 加固方案有时会调用这个更底层的 Java 退出方法
-        XposedHelpers.findAndHookMethod(
-            Runtime::class.java,
-            "halt",
-            Int::class.java,
-            object : XC_MethodReplacement() {
-                override fun replaceHookedMethod(param: MethodHookParam): Any? {
-                    val status = param.args[0] as Int
-                    XposedBridge.log("--- 成功拦截 Runtime.halt($status) ---")
-                    return null
-                }
+    /**
+     * 向容器添加一个开关项，状态自动持久化到 SharedPreferences
+     *
+     * @param container 父容器
+     * @param context 上下文
+     * @param label 开关标签文字
+     * @param prefKey SharedPreferences 存储键名
+     */
+    private fun addSwitchItem(
+        container: LinearLayout, context: Context, label: String, prefKey: String
+    ) {
+        @SuppressLint("UseSwitchCompatOrMaterialCode")
+        val switchView = Switch(context).apply {
+            text = label
+            textSize = 16f
+            setPadding(0, 40, 0, 40)
+            isChecked = sharedPreferences.getBoolean(prefKey, false)
+
+            setOnCheckedChangeListener { _, isChecked ->
+                sharedPreferences.edit().putBoolean(prefKey, isChecked).apply()
+                Toast.makeText(
+                    context,
+                    if (isChecked) "已开启" else "已关闭",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
-        )
+        }
+        container.addView(switchView)
     }
 }
