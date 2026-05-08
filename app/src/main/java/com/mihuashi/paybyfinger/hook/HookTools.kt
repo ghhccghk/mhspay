@@ -402,14 +402,14 @@ class HookTool {
                     context, 0, launchIntent, PendingIntent.FLAG_MUTABLE
                 )
             )
-            val bigIslandArea = IslandApi.BigIslandArea(
-                imageTextInfoLeft = IslandApi.ImageTextInfo(
-                    picInfo = IslandApi.PicInfo(
+            val bigIslandArea = IslandApi.bigIslandArea(
+                imageTextInfoLeft = IslandApi.imageTextInfo(
+                    picInfo = IslandApi.picInfo(
                         pic = "miui.focus.pic_ticker"
                     ),
                     textInfo = IslandApi.TextInfo(title = "付款通知")
                 ),
-                imageTextInfoRight = IslandApi.ImageTextInfo(
+                imageTextInfoRight = IslandApi.imageTextInfo(
                     textInfo = IslandApi.TextInfo(title = text),
                     type = 2
                 )
@@ -417,7 +417,7 @@ class HookTool {
             val island = IslandApi.IslandTemplate(
                 bigIslandArea = bigIslandArea,
                 smallIslandArea = IslandApi.SmallIslandArea(
-                    picInfo = IslandApi.PicInfo(
+                    picInfo = IslandApi.picInfo(
                         pic = "miui.focus.pic_ticker"
                     )
                 )
