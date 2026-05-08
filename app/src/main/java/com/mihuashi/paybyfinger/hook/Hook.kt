@@ -38,6 +38,7 @@ import com.mihuashi.paybyfinger.hook.HookTool.Companion.decryptData
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.findParentByChild
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.getresId
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.isSixDigitNumber
+import com.mihuashi.paybyfinger.hook.HookTool.Companion.showMaterialPasswordDialog
 import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
@@ -445,7 +446,7 @@ object Hook : BaseHook() {
         }
 
         // ---- 菜单项：模块版本号 ----
-        addMenuItem(menuContainer, "📦 模块版本号") {
+        addMenuItem(menuContainer, "模块版本号") {
             Toast.makeText(context, "模块版本号为 ${BuildConfig.VERSION_NAME}", Toast.LENGTH_SHORT).show()
         }
 
@@ -453,7 +454,7 @@ object Hook : BaseHook() {
         addSwitchItem(menuContainer, context, "总开关", KEY_ALL_SWITCH)
 
         // ---- 菜单项：测试调用 ----
-        addMenuItem(menuContainer, "🧪 测试调用") {
+        addMenuItem(menuContainer, "测试调用") {
             try {
                 paymentTimestamp = System.currentTimeMillis().toString()
                 val intent = createBiometricIntent()
@@ -471,6 +472,11 @@ object Hook : BaseHook() {
             } catch (e: Exception) {
                 Toast.makeText(context, "启动失败: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+        }
+
+        addMenuItem(menuContainer,"修改密码"){
+            showMaterialPasswordDialog(context)
+
         }
 
         // ---- 开关项：小米焦点通知 ----
