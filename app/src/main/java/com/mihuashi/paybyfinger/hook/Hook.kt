@@ -28,7 +28,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.navigation.fragment.dialog
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cn.xiaowine.xkt.Tool.isNotNull
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
@@ -43,10 +42,21 @@ import com.mihuashi.paybyfinger.hook.HookTool.Companion.decryptData
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.findParentByChild
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.getresId
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.isSixDigitNumber
+import com.mihuashi.paybyfinger.tools.ConfigTools.AUTH_RESULT_ACTION
+import com.mihuashi.paybyfinger.tools.ConfigTools.BASE_FRAGMENT_CLASS
+import com.mihuashi.paybyfinger.tools.ConfigTools.BIOMETRIC_ACTIVITY_CLASS
+import com.mihuashi.paybyfinger.tools.ConfigTools.INPUT_PASSWORD_DIALOG_CLASS
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_ALL_SWITCH
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_MI_SWITCH
+import com.mihuashi.paybyfinger.tools.ConfigTools.MINE_SETTING_ITEM_VIEW_CLASS
+import com.mihuashi.paybyfinger.tools.ConfigTools.MODULE_PACKAGE
+import com.mihuashi.paybyfinger.tools.ConfigTools.PREF_NAME
+import com.mihuashi.paybyfinger.tools.ConfigTools.SETTING_FRAGMENT_CLASS
 import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
 import com.mihuashi.paybyfinger.tools.DialogLifecycleOwner
 import com.mihuashi.paybyfinger.tools.DialogSavedStateOwner
 import com.mihuashi.paybyfinger.tools.DialogViewModelStoreOwner
+import com.mihuashi.paybyfinger.tools.utils.ResInjectTool.injectModuleRes
 import com.mihuashi.paybyfinger.ui.hook.HookSettingUI
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
@@ -68,43 +78,6 @@ import top.yukonga.miuix.kmp.theme.ThemeController
  *   → 验证结果通过广播 AUTH_RESULT 返回 → 本模块接收并自动填入密码
  */
 object Hook : BaseHook() {
-
-    // ==================== 常量定义 ====================
-
-    /** SharedPreferences 文件名 */
-    private const val PREF_NAME = "mhshooksetting"
-
-    /** 总开关：启用/禁用指纹认证 Hook */
-    private const val KEY_ALL_SWITCH = "allswitch"
-
-    /** 小米焦点通知开关：是否在通知栏显示支付金额 */
-    private const val KEY_MI_SWITCH = "miswitch"
-
-    /** 指纹认证结果广播的 Action */
-    const val AUTH_RESULT_ACTION = "com.mihuashi.paybyfinger.AUTH_RESULT"
-
-    /** 指纹验证 Activity 的类名 */
-    private const val BIOMETRIC_ACTIVITY_CLASS =
-        "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
-
-    /** 本模块的包名 */
-    private const val MODULE_PACKAGE = "com.mihuashi.paybyfinger"
-
-    /** 米画师密码输入对话框类名 */
-    private const val INPUT_PASSWORD_DIALOG_CLASS =
-        "com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog"
-
-    /** 设置页面 Fragment 类名 */
-    private const val SETTING_FRAGMENT_CLASS =
-        "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment"
-
-    /** 设置项自定义 View 类名 */
-    private const val MINE_SETTING_ITEM_VIEW_CLASS =
-        "com.qixin.mihuas.module.main.mine.widget.MineSettingItemView"
-
-    /** 基础 Fragment 类名 */
-    private const val BASE_FRAGMENT_CLASS =
-        "com.qixin.mihuas.core.mvvm.v.BaseFragment"
 
     // ==================== 模块状态 ====================
 
@@ -240,6 +213,7 @@ object Hook : BaseHook() {
             it.methodFinder().first { name == "attachBaseContext" }.createHook {
                 after { param ->
                     val context = param.args[0] as Context
+                    injectModuleRes(context)
                     initHooksForApp(context)
                 }
             }
@@ -498,90 +472,6 @@ object Hook : BaseHook() {
             show()
         }
 
-        // 创建主容器（垂直排列）
-        val menuContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            val padding = (20 * context.resources.displayMetrics.density).toInt()
-            setPadding(padding, padding, padding, padding)
-        }
-
-//        // ---- 菜单项：模块版本号 ----
-//        addMenuItem(menuContainer, "📦 模块版本号") {
-//            Toast.makeText(context, "模块版本号为 ${BuildConfig.VERSION_NAME}", Toast.LENGTH_SHORT).show()
-//        }
-//
-//        // ---- 开关项：总开关 ----
-//        addSwitchItem(menuContainer, context, "总开关", KEY_ALL_SWITCH)
-//
-//        // ---- 菜单项：测试调用 ----
-//        addMenuItem(menuContainer, "🧪 测试调用") {
-//
-//        }
-//
-//        addMenuItem(menuContainer, "🔑 修改密码") {
-//            showMaterialPasswordDialog(context)
-//        }
-//
-//        // ---- 开关项：小米焦点通知 ----
-//        addSwitchItem(menuContainer, context, "焦点通知金额开关 (小米专用)", KEY_MI_SWITCH)
-
-//        // 弹出对话框，并在 Dialog 的 decorView 上补齐 Compose 所需的生命周期所有者
-//        val dialog = AlertDialog.Builder(context).apply {
-//            setTitle("功能菜单")
-//            setView(menuContainer)
-//            setPositiveButton("完成", null)
-//        }.create()
-//
-//        dialog.show()
     }
 
-    /**
-     * 向容器添加一个可点击的菜单行
-     */
-    private fun addMenuItem(container: LinearLayout, text: String, onClick: () -> Unit) {
-        val textView = TextView(container.context).apply {
-            this.text = text
-            textSize = 16f
-            setPadding(0, 30, 0, 30)
-            setTextColor(Color.WHITE)
-            // 设置点击波纹效果
-            val outValue = TypedValue()
-            container.context.theme.resolveAttribute(
-                R.attr.selectableItemBackground, outValue, true
-            )
-            setBackgroundResource(outValue.resourceId)
-            setOnClickListener { onClick() }
-        }
-        container.addView(textView)
-    }
-
-    /**
-     * 向容器添加一个开关项，状态自动持久化到 SharedPreferences
-     *
-     * @param container 父容器
-     * @param context 上下文
-     * @param label 开关标签文字
-     * @param prefKey SharedPreferences 存储键名
-     */
-    private fun addSwitchItem(
-        container: LinearLayout, context: Context, label: String, prefKey: String
-    ) {
-        @SuppressLint("UseSwitchCompatOrMaterialCode")
-        val switchView = Switch(context).apply {
-            text = label
-            textSize = 16f
-            setPadding(0, 40, 0, 40)
-            isChecked = sharedPreferences.getBoolean(prefKey, false)
-
-            setOnCheckedChangeListener { _, isChecked ->
-                sharedPreferences.edit().putBoolean(prefKey, isChecked).apply()
-                Toast.makeText(
-                    context,
-                    if (isChecked) "已开启" else "已关闭",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-        container.addView(switchView)
-    }
 }

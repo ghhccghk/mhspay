@@ -6,6 +6,7 @@ import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.LogExtensions.logexIfThrow
 import com.mihuashi.paybyfinger.hook.Hook
 import com.mihuashi.paybyfinger.hook.Systemui
+import com.mihuashi.paybyfinger.tools.utils.ResInjectTool
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.IXposedHookZygoteInit
 import de.robv.android.xposed.callbacks.XC_LoadPackage
@@ -39,6 +40,7 @@ class MainHook : IXposedHookLoadPackage, IXposedHookZygoteInit /* Optional */ {
     // Optional
     override fun initZygote(startupParam: IXposedHookZygoteInit.StartupParam) {
         EzXHelper.initZygote(startupParam)
+        ResInjectTool.init(startupParam.modulePath)
     }
     private fun initHooks(vararg hook: BaseHook) {
         hook.forEach {

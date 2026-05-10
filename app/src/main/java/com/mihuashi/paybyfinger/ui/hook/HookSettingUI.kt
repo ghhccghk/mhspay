@@ -2,9 +2,11 @@ package com.mihuashi.paybyfinger.ui.hook
 
 import android.content.Context
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,20 +28,25 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.mihuashi.paybyfinger.BuildConfig
-import com.mihuashi.paybyfinger.hook.Hook.AUTH_RESULT_ACTION
 import com.mihuashi.paybyfinger.hook.Hook.createBiometricIntent
 import com.mihuashi.paybyfinger.hook.Hook.paymentTimestamp
 import com.mihuashi.paybyfinger.hook.Hook.resultReceiver
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.PasswordSaveCallback
+import com.mihuashi.paybyfinger.hook.HookTool.Companion.convertTimestampToTime
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.savePasswordWithCallback
+import com.mihuashi.paybyfinger.tools.ConfigTools.AUTH_RESULT_ACTION
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_ALL_SWITCH
 import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.BasicComponentColors
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
@@ -48,11 +55,15 @@ import top.yukonga.miuix.kmp.icon.extended.Rename
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.core.content.edit
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_MI_SWITCH
+import com.mihuashi.paybyfinger.tools.ConfigTools.PREF_NAME
 
 
 @Composable
-fun HookSettingUI(context: Context){
+fun HookSettingUI(context: Context) {
     val scrollBehavior = MiuixScrollBehavior()
+    val sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
 
     Scaffold(
         topBar = {
@@ -62,7 +73,6 @@ fun HookSettingUI(context: Context){
             )
         }
     ) { paddingValues ->
-
         var showDialog by remember { mutableStateOf(false) }
         var passwordValue by remember { mutableStateOf("") }
         var passwordVisible by remember { mutableStateOf(false) }
@@ -72,21 +82,68 @@ fun HookSettingUI(context: Context){
         var isErrorCheck by remember { mutableStateOf(false) }
         val errorColor = androidx.compose.ui.graphics.Color.Red.copy(0.3f)
 
+        var allSwitch by remember {
+            mutableStateOf(
+                sharedPreferences.getBoolean(KEY_ALL_SWITCH, false)
+            )
+        }
+        var miSwitch by remember {
+            mutableStateOf(
+                sharedPreferences.getBoolean(KEY_ALL_SWITCH, false)
+            )
+        }
 
-
-        // 内容区域需要考虑 padding
         LazyColumn(
             modifier = Modifier
-                .padding(start = 8.dp, end= 8.dp)
+                .padding(horizontal = 12.dp)
                 .fillMaxSize()
-                // 如需添加越界回弹效果，则应在绑定滚动行为之前添加
                 .overScrollVertical()
-                // 绑定 TopAppBar 滚动事件
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(top = paddingValues.calculateTopPadding())
         ) {
+
+
+            if (BuildConfig.DEBUG) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .padding(start = 8.dp, end = 8.dp)
+                    ) {
+                        BasicComponent(
+                            title = "当前为调试版本",
+                            titleColor = BasicComponentColors(
+                                color = MiuixTheme.colorScheme.error,
+                                disabledColor = MiuixTheme.colorScheme.error.copy(alpha = 0.3f)
+                            )
+                        )
+                    }
+                }
+            }
             item {
-                Card {
+                Card(modifier = Modifier
+                    .padding(start = 8.dp, end = 8.dp))
+                {
+                    BasicComponent(
+                        title = "总开关",
+                        endActions = {
+                            Switch(
+                                checked = allSwitch,
+                                onCheckedChange = {
+                                    allSwitch = it
+                                    sharedPreferences.edit {
+                                        putBoolean(KEY_ALL_SWITCH, it)
+                                    }
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+            item {
+                Card(modifier = Modifier
+                    .padding(start = 8.dp, end = 8.dp))
+                {
                     BasicComponent(
                         title = "测试调用",
                         onClick = {
@@ -98,28 +155,86 @@ fun HookSettingUI(context: Context){
                                 // 注册广播接收器监听认证结果
                                 val filter = IntentFilter(AUTH_RESULT_ACTION)
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    context.registerReceiver(resultReceiver, filter, Context.RECEIVER_EXPORTED)
+                                    context.registerReceiver(
+                                        resultReceiver,
+                                        filter,
+                                        Context.RECEIVER_EXPORTED
+                                    )
                                 } else {
                                     ContextCompat.registerReceiver(
-                                        context, resultReceiver, filter, ContextCompat.RECEIVER_EXPORTED
+                                        context,
+                                        resultReceiver,
+                                        filter,
+                                        ContextCompat.RECEIVER_EXPORTED
                                     )
                                 }
                             } catch (e: Exception) {
-                                Toast.makeText(context, "启动失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    "启动失败: ${e.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
 
                         }
                     )
-                    BasicComponent(
-                        title = "修改密码",
-                        summary = "点击此处修改密码",
-                        onClick = { showDialog = true }
+                }
+            }
+            if (allSwitch){
+                item {
+                    SmallTitle(
+                        text = "配置"
                     )
-                    BasicComponent(
-                        title = "版本号",
-                        summary = BuildConfig.VERSION_NAME,
-
+                    Card(
+                        modifier = Modifier
+                            .padding(start = 8.dp, end = 8.dp)
+                    )
+                    {
+                        BasicComponent(
+                            title = "修改密码",
+                            summary = "点击此处修改密码",
+                            onClick = { showDialog = true }
                         )
+                        BasicComponent(
+                            title = "焦点通知金额开关 (小米专用)",
+                            endActions = {
+                                Switch(
+                                    checked = miSwitch,
+                                    onCheckedChange = {
+                                        miSwitch = it
+                                        sharedPreferences.edit {
+                                            putBoolean(KEY_MI_SWITCH, it)
+                                        }
+                                    }
+                                )
+                            }
+                        )
+                    }
+
+                }
+            }
+            item {
+                Column {
+                    SmallTitle(
+                        text = "关于"
+                    )
+                    Card(
+                        modifier = Modifier
+                            .padding(start = 8.dp, end = 8.dp)
+                    ) {
+                        BasicComponent(
+                            title = "构建类型",
+                            summary = BuildConfig.BUILD_TYPE,
+                        )
+                        BasicComponent(
+                            title = "构建时间",
+                            summary = convertTimestampToTime(BuildConfig.BUILD_TIME),
+                        )
+                        BasicComponent(
+                            title = "版本号",
+                            summary = BuildConfig.VERSION_NAME,
+                        )
+                    }
                 }
             }
 
@@ -157,7 +272,9 @@ fun HookSettingUI(context: Context){
                 },
                 onValueChange = {
                     passwordValue = it
-                    isError = passwordValue.isNotEmpty() && !passwordValue.matches(Regex("^\\d{6}$")) }
+                    isError =
+                        passwordValue.isNotEmpty() && !passwordValue.matches(Regex("^\\d{6}$"))
+                }
             )
             if (isError) {
                 Text(
@@ -192,7 +309,8 @@ fun HookSettingUI(context: Context){
                 labelColor = if (isErrorCheck) errorColor else MiuixTheme.colorScheme.onSecondaryContainer,
                 onValueChange = {
                     passwordCheckValue = it
-                    isErrorCheck = passwordCheckValue.isNotEmpty() && !passwordCheckValue.matches(Regex("^\\d{6}$"))
+                    isErrorCheck =
+                        passwordCheckValue.isNotEmpty() && !passwordCheckValue.matches(Regex("^\\d{6}$"))
                 }
             )
             if (isErrorCheck) {
@@ -226,7 +344,8 @@ fun HookSettingUI(context: Context){
                         if (password.length == 6 && password == confirmPassword) {
                             val callback = object : PasswordSaveCallback {
                                 override fun onSuccess() {
-                                    Toast.makeText(context, "密码设置成功!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "密码设置成功!", Toast.LENGTH_SHORT)
+                                        .show()
                                     passwordValue = ""
                                     passwordCheckValue = ""
                                 }
