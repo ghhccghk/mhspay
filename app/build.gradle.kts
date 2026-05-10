@@ -13,7 +13,7 @@ val buildTime = System.currentTimeMillis()
 
 android {
     namespace = "com.mihuashi.paybyfinger"
-    compileSdk = 36
+    compileSdk = 37
     val localProperties = Properties()
     if (rootProject.file("local.properties").canRead())
         localProperties.load(rootProject.file("local.properties").inputStream())
@@ -22,7 +22,6 @@ android {
     defaultConfig {
         applicationId = "com.mihuashi.paybyfinger"
         minSdk = 28
-        targetSdk = 36
         versionCode = 6
         versionName = "1.0.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -123,4 +122,14 @@ dependencies {
     implementation(libs.cardSlider)
     implementation(libs.modernandroidpreferences)
     implementation(libs.hyperfocusapi)
+
+    implementation("top.yukonga.miuix.kmp:miuix-ui:0.9.0")
+    // 可选：添加 miuix-preference 以获取 Preference 组件
+    implementation("top.yukonga.miuix.kmp:miuix-preference:0.9.0")
+    // 可选：添加 miuix-icons 以获取更多图标
+    implementation("top.yukonga.miuix.kmp:miuix-icons:0.9.0")
+    // 可选：添加 miuix-shapes 以获取平滑圆角
+    implementation("top.yukonga.miuix.kmp:miuix-shapes:0.9.0")
+    // 可选：添加 miuix-navigation3-ui 以获取 Navigation3 支持
+    implementation("top.yukonga.miuix.kmp:miuix-navigation3-ui:0.9.0")
 }

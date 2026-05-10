@@ -1,7 +1,7 @@
 package com.mihuashi.paybyfinger.tools
 
 import android.os.Build
-import com.mihuashi.paybyfinger.hook.Tool.getSystemProperties
+import com.mihuashi.paybyfinger.tools.Tools.getSystemProperties
 
 class SystemConfig {
     companion object {

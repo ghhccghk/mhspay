@@ -3,7 +3,6 @@ package com.mihuashi.paybyfinger.hook
 //noinspection SuspiciousImport
 import android.R
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -11,6 +10,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -23,11 +23,16 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.navigation.fragment.dialog
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cn.xiaowine.xkt.Tool.isNotNull
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
 import com.github.kyuubiran.ezxhelper.ClassUtils.loadClassOrNull
-import com.github.kyuubiran.ezxhelper.EzXHelper.classLoader
 import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createHook
 import com.github.kyuubiran.ezxhelper.Log
 import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinder
@@ -38,10 +43,16 @@ import com.mihuashi.paybyfinger.hook.HookTool.Companion.decryptData
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.findParentByChild
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.getresId
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.isSixDigitNumber
-import com.mihuashi.paybyfinger.hook.HookTool.Companion.showMaterialPasswordDialog
 import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
+import com.mihuashi.paybyfinger.tools.DialogLifecycleOwner
+import com.mihuashi.paybyfinger.tools.DialogSavedStateOwner
+import com.mihuashi.paybyfinger.tools.DialogViewModelStoreOwner
+import com.mihuashi.paybyfinger.ui.hook.HookSettingUI
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 
 
 /**
@@ -63,33 +74,33 @@ object Hook : BaseHook() {
     /** SharedPreferences 文件名 */
     private const val PREF_NAME = "mhshooksetting"
 
-        /** 总开关：启用/禁用指纹认证 Hook */
-        private const val KEY_ALL_SWITCH = "allswitch"
+    /** 总开关：启用/禁用指纹认证 Hook */
+    private const val KEY_ALL_SWITCH = "allswitch"
 
-        /** 小米焦点通知开关：是否在通知栏显示支付金额 */
-        private const val KEY_MI_SWITCH = "miswitch"
+    /** 小米焦点通知开关：是否在通知栏显示支付金额 */
+    private const val KEY_MI_SWITCH = "miswitch"
 
-        /** 指纹认证结果广播的 Action */
-        private const val AUTH_RESULT_ACTION = "com.mihuashi.paybyfinger.AUTH_RESULT"
+    /** 指纹认证结果广播的 Action */
+    const val AUTH_RESULT_ACTION = "com.mihuashi.paybyfinger.AUTH_RESULT"
 
-        /** 指纹验证 Activity 的类名 */
-        private const val BIOMETRIC_ACTIVITY_CLASS =
-            "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
+    /** 指纹验证 Activity 的类名 */
+    private const val BIOMETRIC_ACTIVITY_CLASS =
+        "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
 
-        /** 本模块的包名 */
-        private const val MODULE_PACKAGE = "com.mihuashi.paybyfinger"
+    /** 本模块的包名 */
+    private const val MODULE_PACKAGE = "com.mihuashi.paybyfinger"
 
-        /** 米画师密码输入对话框类名 */
-        private const val INPUT_PASSWORD_DIALOG_CLASS =
-            "com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog"
+    /** 米画师密码输入对话框类名 */
+    private const val INPUT_PASSWORD_DIALOG_CLASS =
+        "com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog"
 
-        /** 设置页面 Fragment 类名 */
-        private const val SETTING_FRAGMENT_CLASS =
-            "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment"
+    /** 设置页面 Fragment 类名 */
+    private const val SETTING_FRAGMENT_CLASS =
+        "com.qixin.mihuas.module.main.mine.setting.fragment.MineSettingEmployerFragment"
 
-        /** 设置项自定义 View 类名 */
-        private const val MINE_SETTING_ITEM_VIEW_CLASS =
-            "com.qixin.mihuas.module.main.mine.widget.MineSettingItemView"
+    /** 设置项自定义 View 类名 */
+    private const val MINE_SETTING_ITEM_VIEW_CLASS =
+        "com.qixin.mihuas.module.main.mine.widget.MineSettingItemView"
 
     /** 基础 Fragment 类名 */
     private const val BASE_FRAGMENT_CLASS =
@@ -339,7 +350,7 @@ object Hook : BaseHook() {
     /**
      * 生成并启动指纹认证 Activity 的 Intent
      */
-    private fun createBiometricIntent(): Intent {
+    fun createBiometricIntent(): Intent {
         return Intent().apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
             putExtra("open", true)
@@ -397,7 +408,7 @@ object Hook : BaseHook() {
             if (rootView !is FrameLayout) return
 
             // 反射创建"指纹认证"设置项 View
-            val newSettingItem = XposedHelpers.newInstance(settingItemViewClass, context) as View
+            val newSettingItem = XposedHelpers.newInstance(settingItemViewClass, context) as ViewGroup
             val iconResId = getresId(resources, "svg_icon_install_manage", "drawable")
 
             // 配置设置项的标签、图标和样式
@@ -405,14 +416,27 @@ object Hook : BaseHook() {
             XposedHelpers.setIntField(newSettingItem, "iconRes", iconResId)
             XposedHelpers.callMethod(newSettingItem, "setCornerSide", 1)
 
+            val text = TextView(context).apply {
+                this.text = "指纹认证"
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                val marginLeft = (10 * context.resources.displayMetrics.density).toInt()
+                setPadding(marginLeft, 0, 0, 0)
+            }
+
             newSettingItem.layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
 
+            newSettingItem.addView(text)
+
+
+
             // 设置点击事件：弹出功能菜单对话框
             newSettingItem.setOnClickListener { view ->
                 showFunctionMenuDialog(view.context)
+
             }
 
             // 将新设置项添加到页面设置列表中
@@ -438,6 +462,42 @@ object Hook : BaseHook() {
      * - 测试调用：手动启动指纹认证（不经过支付流程）
      */
     private fun showFunctionMenuDialog(context: Context) {
+
+        val composeView = ComposeView(context)
+        val lifecycleOwner = DialogLifecycleOwner()
+        val vmOwner = DialogViewModelStoreOwner()
+        val savedStateOwner = DialogSavedStateOwner()
+
+        // 关键：补齐 Compose 运行环境， Lifecycle/ViewModelStore/SavedState 所有者
+        composeView.setViewTreeLifecycleOwner(lifecycleOwner)
+        composeView.setViewTreeViewModelStoreOwner(vmOwner)
+        composeView.setViewTreeSavedStateRegistryOwner(savedStateOwner)
+
+        composeView.setContent {
+            MiuixTheme(
+                controller = remember { ThemeController(ColorSchemeMode.MonetSystem) },
+                content = {
+                    HookSettingUI(context)
+                }
+
+            )
+        }
+
+        android.app.Dialog(context).apply {
+            setContentView(composeView)
+            window?.setLayout(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            window?.apply {
+                setBackgroundDrawableResource(android.R.color.transparent)
+                // 或者
+                setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+                setDimAmount(0.5f) // 背景遮罩透明度
+            }
+            show()
+        }
+
         // 创建主容器（垂直排列）
         val menuContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -445,49 +505,34 @@ object Hook : BaseHook() {
             setPadding(padding, padding, padding, padding)
         }
 
-        // ---- 菜单项：模块版本号 ----
-        addMenuItem(menuContainer, "模块版本号") {
-            Toast.makeText(context, "模块版本号为 ${BuildConfig.VERSION_NAME}", Toast.LENGTH_SHORT).show()
-        }
+//        // ---- 菜单项：模块版本号 ----
+//        addMenuItem(menuContainer, "📦 模块版本号") {
+//            Toast.makeText(context, "模块版本号为 ${BuildConfig.VERSION_NAME}", Toast.LENGTH_SHORT).show()
+//        }
+//
+//        // ---- 开关项：总开关 ----
+//        addSwitchItem(menuContainer, context, "总开关", KEY_ALL_SWITCH)
+//
+//        // ---- 菜单项：测试调用 ----
+//        addMenuItem(menuContainer, "🧪 测试调用") {
+//
+//        }
+//
+//        addMenuItem(menuContainer, "🔑 修改密码") {
+//            showMaterialPasswordDialog(context)
+//        }
+//
+//        // ---- 开关项：小米焦点通知 ----
+//        addSwitchItem(menuContainer, context, "焦点通知金额开关 (小米专用)", KEY_MI_SWITCH)
 
-        // ---- 开关项：总开关 ----
-        addSwitchItem(menuContainer, context, "总开关", KEY_ALL_SWITCH)
-
-        // ---- 菜单项：测试调用 ----
-        addMenuItem(menuContainer, "测试调用") {
-            try {
-                paymentTimestamp = System.currentTimeMillis().toString()
-                val intent = createBiometricIntent()
-                context.startActivity(intent)
-
-                // 注册广播接收器监听认证结果
-                val filter = IntentFilter(AUTH_RESULT_ACTION)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    context.registerReceiver(resultReceiver, filter, Context.RECEIVER_EXPORTED)
-                } else {
-                    ContextCompat.registerReceiver(
-                        context, resultReceiver, filter, ContextCompat.RECEIVER_EXPORTED
-                    )
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "启动失败: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        addMenuItem(menuContainer,"修改密码"){
-            showMaterialPasswordDialog(context)
-
-        }
-
-        // ---- 开关项：小米焦点通知 ----
-        addSwitchItem(menuContainer, context, "焦点通知金额开关 (小米专用)", KEY_MI_SWITCH)
-
-        // 弹出对话框
-        AlertDialog.Builder(context).apply {
-            setTitle("功能菜单")
-            setView(menuContainer)
-            setPositiveButton("完成", null)
-        }.show()
+//        // 弹出对话框，并在 Dialog 的 decorView 上补齐 Compose 所需的生命周期所有者
+//        val dialog = AlertDialog.Builder(context).apply {
+//            setTitle("功能菜单")
+//            setView(menuContainer)
+//            setPositiveButton("完成", null)
+//        }.create()
+//
+//        dialog.show()
     }
 
     /**

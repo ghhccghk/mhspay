@@ -19,9 +19,9 @@ import com.mihuashi.paybyfinger.ui.viewmodel.HomeViewModel
 import com.mihuashi.paybyfinger.ui.viewmodel.ShareViewModel
 import cn.xiaowine.xkt.Tool.toUpperFirstCaseAndLowerOthers
 import com.google.android.material.color.MaterialColors
-import com.mihuashi.paybyfinger.hook.Tool.getPhoneName
 import com.mihuashi.paybyfinger.tools.ConfigTools.config
 import com.mihuashi.paybyfinger.tools.SystemConfig
+import com.mihuashi.paybyfinger.tools.Tools.getPhoneName
 import java.text.SimpleDateFormat
 import java.util.Locale
 

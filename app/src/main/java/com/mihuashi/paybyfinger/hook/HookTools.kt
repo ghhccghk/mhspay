@@ -145,7 +145,7 @@ class HookTool {
             fun onFailure(error: String)
         }
 
-        private fun savePasswordWithCallback(
+        fun savePasswordWithCallback(
             context: Context,
             password: String,
             callback: PasswordSaveCallback
