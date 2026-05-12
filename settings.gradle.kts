@@ -20,4 +20,4 @@ plugins {
 }
 rootProject.name = "Rice Painter Fingerprint Pay"
 include(":app")
- 
+include(":baselineprofile")

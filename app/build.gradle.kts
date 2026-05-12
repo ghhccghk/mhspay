@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.konan.properties.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.baselineprofile)
 }
 
 val buildTime = System.currentTimeMillis()
@@ -49,15 +50,14 @@ android {
             signingConfig = config ?: signingConfigs["debug"]
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            optimization.enable = true
             vcsInfo.include = false
-            setProguardFiles(
-                listOf(
-                    getDefaultProguardFile("proguard-android-optimize.txt"),
-                    "proguard-rules.pro"
-                )
-            )
+            experimentalProperties["android.experimental.r8.dex-startup-optimization"] = true
+        }
+        create("benchmarkRelease") {
+            isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
         }
     }
     compileOptions {
@@ -91,6 +91,8 @@ base {
 }
 
 dependencies {
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
     implementation(libs.shadow.gradle.plugin)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
