@@ -8,7 +8,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.graphics.drawable.Icon
-import android.os.Bundle
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.text.InputFilter
@@ -24,10 +23,9 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
-import com.github.kyuubiran.ezxhelper.Log
 import com.hyperfocus.api.FocusApi
 import com.hyperfocus.api.IslandApi
-import org.json.JSONObject
+import io.github.kyuubiran.ezxhelper.android.logging.Logger
 import java.security.KeyStore
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -242,7 +240,7 @@ class HookTool {
          *  @param view 是要用来获取的View */
         fun logAllViews(view: View) {
             // 输出当前视图的信息
-            Log.i("View: ${view.javaClass.simpleName}, ID: ${view.id}, Tag: ${view.tag}")
+            Logger.i("View: ${view.javaClass.simpleName}, ID: ${view.id}, Tag: ${view.tag}")
 
             // 如果视图是一个 ViewGroup，继续递归遍历子视图
             if (view is ViewGroup) {

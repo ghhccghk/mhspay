@@ -1,7 +1,6 @@
 package com.mihuashi.paybyfinger.hook
 
 //noinspection SuspiciousImport
-import android.R
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -19,7 +18,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -30,11 +28,6 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cn.xiaowine.xkt.Tool.isNotNull
-import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
-import com.github.kyuubiran.ezxhelper.ClassUtils.loadClassOrNull
-import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createHook
-import com.github.kyuubiran.ezxhelper.Log
-import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinder
 import com.mihuashi.paybyfinger.BaseHook
 import com.mihuashi.paybyfinger.BuildConfig
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.convertTimestampToTime
@@ -60,6 +53,11 @@ import com.mihuashi.paybyfinger.tools.utils.ResInjectTool.injectModuleRes
 import com.mihuashi.paybyfinger.ui.hook.HookSettingUI
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.XposedHelpers.findClass
+import io.github.kyuubiran.ezxhelper.android.logging.Logger
+import io.github.kyuubiran.ezxhelper.core.finder.MethodFinder.`-Static`.methodFinder
+import io.github.kyuubiran.ezxhelper.core.util.ClassUtil.loadClass
+import io.github.kyuubiran.ezxhelper.core.util.ClassUtil.loadClassOrNull
+import io.github.kyuubiran.ezxhelper.xposed.dsl.HookFactory.`-Static`.createHook
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
@@ -116,7 +114,7 @@ object Hook : BaseHook() {
                 val isMiNotificationEnabled = sharedPreferences.getBoolean(KEY_MI_SWITCH, false)
 
                 if (BuildConfig.DEBUG) {
-                    Log.i("指纹认证时间：${convertTimestampToTime(authTime)} ${context.javaClass.name}")
+                    Logger.i("指纹认证时间：${convertTimestampToTime(authTime)} ${context.javaClass.name}")
                 }
 
                 if (isAuthenticated) {
@@ -130,7 +128,7 @@ object Hook : BaseHook() {
                     HookTool.cancelNotification(context)
                 }
             } catch (e: Exception) {
-                Log.e("广播接收器异常: ${e.message}")
+                Logger.e("广播接收器异常: ${e.message}")
             }
         }
     }
@@ -165,7 +163,7 @@ object Hook : BaseHook() {
         val decryptedPassword = decryptData(alias, context)
 
         if (BuildConfig.DEBUG) {
-            Log.i("广播pay: $payFromIntent, 当前paytime: $paymentTimestamp")
+            Logger.i("广播pay: $payFromIntent, 当前paytime: $paymentTimestamp")
         }
 
         // 校验时间戳是否匹配（防止旧的广播被误处理）
@@ -182,9 +180,13 @@ object Hook : BaseHook() {
             return
         }
 
-        // 所有校验通过，自动填入密码
-        method?.invoke(passwordDialog, decryptedPassword)
-        context.unregisterReceiver(resultReceiver)
+        // 所有校验通过，随机延迟后自动填入密码（模拟人工输入）
+        val randomDelay = (10L..100L).random()
+        Handler(Looper.getMainLooper()).postDelayed({
+            method?.invoke(passwordDialog, decryptedPassword)
+            context.unregisterReceiver(resultReceiver)
+        }, randomDelay)
+        return
     }
 
     /**
@@ -192,7 +194,7 @@ object Hook : BaseHook() {
      */
     private fun handleAuthFailure(context: Context, errorMessage: String?, authTime: Long) {
         val timeStr = convertTimestampToTime(authTime)
-        Log.i("指纹认证失败，错误信息：$errorMessage，时间：$timeStr")
+        Logger.i("指纹认证失败，错误信息：$errorMessage，时间：$timeStr")
         Toast.makeText(
             context,
             "指纹认证失败，错误信息：$errorMessage，时间：$timeStr",
@@ -244,10 +246,10 @@ object Hook : BaseHook() {
             .createHook {
                 after { param ->
                     val fragmentInstance = param.thisObject
-                    // 仅在"个人-雇主设置"页面注入入口
+                    // 仅在"个人- 设置"页面注入入口
                     if (fragmentInstance::class.java.name == SETTING_FRAGMENT_CLASS) {
                         if (BuildConfig.DEBUG) {
-                            Log.i("目标Fragment: $fragmentInstance，隐藏设置: ${xConfig.hidesetting}")
+                            Logger.i("目标Fragment: $fragmentInstance，隐藏设置: ${xConfig.hidesetting}")
                         }
                         if (!xConfig.hidesetting) {
                             injectSettingsMenuItem(fragmentInstance, classLoader)
@@ -270,7 +272,7 @@ object Hook : BaseHook() {
                     if (!allSwitchEnabled) return@after
 
                     if (BuildConfig.DEBUG) {
-                        Log.i("密码框对象: $dialogInstance")
+                        Logger.i("密码框对象: $dialogInstance")
                     }
 
                     // 保存密码框实例，用于认证成功后自动填入密码
@@ -287,7 +289,7 @@ object Hook : BaseHook() {
                     paymentAmount = amount
 
                     if (BuildConfig.DEBUG) {
-                        Log.i("支付金额: $amount")
+                        Logger.i("支付金额: $amount")
                     }
 
                     // 小米焦点通知：在通知栏显示支付金额
@@ -312,12 +314,46 @@ object Hook : BaseHook() {
                     if (allSwitchEnabled) {
                         val password = param.args[0] as String
                         if (BuildConfig.DEBUG) {
-                            Log.i("密码输入: $password")
+                            Logger.i("密码输入: $password")
                         }
                     }
                 }
             }
+
+        val MineIdentityView = loadClass("com.qixin.mihuas.module.main.mine.widget.MineIdentityView", classLoader)
+
+        MineIdentityView
+            .methodFinder()
+            .first { name == "setMineIdentity" }
+            .createHook {
+                after { param ->
+                    val identityInfo = param.args[0]
+                    //用户名
+                    val username = identityInfo.javaClass.getDeclaredField("name").apply { isAccessible = true }.get(identityInfo)?:""
+                    //头像URL
+                    val avatar_url = identityInfo.javaClass.getDeclaredField("avatar_url").apply { isAccessible = true }.get(identityInfo)?:""
+                    //创建时间
+                    val create_at = identityInfo.javaClass.getDeclaredField("create_at").apply { isAccessible = true }.get(identityInfo)?:""
+                    //ID
+                    val id = identityInfo.javaClass.getDeclaredField("id").apply { isAccessible = true }.get(identityInfo)?:""
+                    //手机号
+                    val phone = identityInfo.javaClass.getDeclaredField("phone").apply { isAccessible = true }.get(identityInfo)?:""
+                    //手机区号
+                    val phone_prefix = identityInfo.javaClass.getDeclaredField("phone_prefix").apply { isAccessible = true }.get(identityInfo)?:""
+
+                    sharedPreferences.apply {
+                        edit().putString("username",username.toString()).apply()
+                        edit().putString("avatar_url",avatar_url.toString()).apply()
+                        edit().putString("create_at",create_at.toString()).apply()
+                        edit().putString("id",id.toString()).apply()
+                        edit().putString("phone",phone.toString()).apply()
+                        edit().putString("phone_prefix",phone_prefix.toString()).apply()
+                    }
+
+                }
+            }
     }
+
 
     // ==================== 指纹认证启动 ====================
 
@@ -350,7 +386,7 @@ object Hook : BaseHook() {
     // ==================== 设置页面菜单注入 ====================
 
     /**
-     * 在米画师"个人-雇主设置"页面注入"指纹认证"入口
+     * 在米画师"个人-设置"页面注入"指纹认证"入口
      *
      * 通过反射获取页面的 rootView，在已有的设置列表中追加一个
      * "指纹认证"入口项，点击后弹出功能菜单对话框。
@@ -366,12 +402,12 @@ object Hook : BaseHook() {
             val settingContainerId = getresId(resources, "mineSettingEmployerRss", "id")
 
             if (rootView == null) {
-                Log.e("Xposed rootView 字段不存在或为空")
+                Logger.e("Xposed rootView 字段不存在或为空")
                 return
             }
 
             if (BuildConfig.DEBUG) {
-                Log.i("Xposed 成功获取 rootView: ${rootView.accessibilityClassName}")
+                Logger.i("Xposed 成功获取 rootView: ${rootView.accessibilityClassName}")
             }
 
             // 加载米画师自定义的设置项 View 类
@@ -418,9 +454,9 @@ object Hook : BaseHook() {
             parentGroup.addView(newSettingItem)
 
         } catch (e: NoSuchFieldError) {
-            Log.e("Xposed 找不到 rootView 字段: $e")
+            Logger.e("Xposed 找不到 rootView 字段: $e")
         } catch (e: Exception) {
-            Log.e("Xposed 注入设置页面时发生错误: ${e.message}")
+            Logger.e("Xposed 注入设置页面时发生错误: ${e.message}")
         }
     }
 

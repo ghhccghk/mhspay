@@ -10,7 +10,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.github.kyuubiran.ezxhelper.Log
 import com.mihuashi.paybyfinger.R
 import com.mihuashi.paybyfinger.databinding.FragmentSettingsBinding
 import com.mihuashi.paybyfinger.tools.ConfigTools.config

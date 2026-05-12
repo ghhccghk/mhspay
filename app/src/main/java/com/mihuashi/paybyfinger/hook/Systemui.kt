@@ -1,15 +1,14 @@
 package com.mihuashi.paybyfinger.hook
 
 import com.github.islamkhsh.BuildConfig
-import com.github.kyuubiran.ezxhelper.ClassUtils.loadClass
-import com.github.kyuubiran.ezxhelper.HookFactory.`-Static`.createHook
-import com.github.kyuubiran.ezxhelper.Log
-import com.github.kyuubiran.ezxhelper.finders.MethodFinder.`-Static`.methodFinder
 import com.mihuashi.paybyfinger.BaseHook
 import com.mihuashi.paybyfinger.PACKAGE_NAME_HOOKED
-import com.mihuashi.paybyfinger.tools.ConfigTools.config
 import com.mihuashi.paybyfinger.tools.SystemConfig
 import de.robv.android.xposed.XposedHelpers
+import io.github.kyuubiran.ezxhelper.android.logging.Logger
+import io.github.kyuubiran.ezxhelper.core.finder.MethodFinder.`-Static`.methodFinder
+import io.github.kyuubiran.ezxhelper.core.util.ClassUtil.loadClass
+import io.github.kyuubiran.ezxhelper.xposed.dsl.HookFactory.`-Static`.createHook
 
 object Systemui : BaseHook() {
 
@@ -17,8 +16,6 @@ object Systemui : BaseHook() {
 
     @Suppress("UNREACHABLE_CODE")
     override fun init() {
-        // 拿到插件的classloader
-
         if (SystemConfig.isMIUI) {
         loadClass("com.android.systemui.shared.plugins.PluginInstance").methodFinder()
             .first { name == "loadPlugin" }.createHook {
@@ -39,7 +36,7 @@ object Systemui : BaseHook() {
                                 before { param ->
                                     val aa = param.args[1] as String
                                     if (BuildConfig.DEBUG) {
-                                        Log.d("软件名称 ${aa}")
+                                        Logger.d("软件名称 ${aa}")
                                     }
                                     if (aa == PACKAGE_NAME_HOOKED) {
                                         param.result = true
@@ -51,7 +48,7 @@ object Systemui : BaseHook() {
                     } catch (e: Exception) {
                         return@after
                         if (BuildConfig.DEBUG){
-                            e.message?.let { Log.i(it) }
+                            e.message?.let { Logger.i(it) }
                         }
                     }
                     // 启用debug日志
