@@ -124,6 +124,8 @@ dependencies {
     implementation(libs.cardSlider)
     implementation(libs.modernandroidpreferences)
     implementation(libs.hyperfocusapi)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 
     implementation("top.yukonga.miuix.kmp:miuix-ui:0.9.0")
     // 可选：添加 miuix-preference 以获取 Preference 组件

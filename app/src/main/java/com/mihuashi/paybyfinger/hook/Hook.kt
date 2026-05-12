@@ -38,9 +38,19 @@ import com.mihuashi.paybyfinger.hook.HookTool.Companion.isSixDigitNumber
 import com.mihuashi.paybyfinger.tools.ConfigTools.AUTH_RESULT_ACTION
 import com.mihuashi.paybyfinger.tools.ConfigTools.BASE_FRAGMENT_CLASS
 import com.mihuashi.paybyfinger.tools.ConfigTools.BIOMETRIC_ACTIVITY_CLASS
+import com.mihuashi.paybyfinger.tools.ConfigTools.DEFAULT_DELAY_MAX
+import com.mihuashi.paybyfinger.tools.ConfigTools.DEFAULT_DELAY_MIN
 import com.mihuashi.paybyfinger.tools.ConfigTools.INPUT_PASSWORD_DIALOG_CLASS
 import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_ALL_SWITCH
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_AVATAR_URL
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_CREATE_AT
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_DELAY_MAX
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_DELAY_MIN
 import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_MI_SWITCH
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_PHONE
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_PHONE_PREFIX
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_USER_ID
+import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_USERNAME
 import com.mihuashi.paybyfinger.tools.ConfigTools.MINE_SETTING_ITEM_VIEW_CLASS
 import com.mihuashi.paybyfinger.tools.ConfigTools.MODULE_PACKAGE
 import com.mihuashi.paybyfinger.tools.ConfigTools.PREF_NAME
@@ -181,8 +191,10 @@ object Hook : BaseHook() {
         }
 
         // 所有校验通过，随机延迟后自动填入密码（模拟人工输入）
-        val randomDelay = (10L..100L).random()
-        Handler(Looper.getMainLooper()).postDelayed({
+        val delayMin = sharedPreferences.getFloat(KEY_DELAY_MIN, DEFAULT_DELAY_MIN).toLong()
+        val delayMax = sharedPreferences.getFloat(KEY_DELAY_MAX, DEFAULT_DELAY_MAX).toLong()
+        val randomDelay = (delayMin..delayMax).random()
+        Handler(Looper.getMainLooper()).postDelayed({////////////
             method?.invoke(passwordDialog, decryptedPassword)
             context.unregisterReceiver(resultReceiver)
         }, randomDelay)
@@ -342,12 +354,12 @@ object Hook : BaseHook() {
                     val phone_prefix = identityInfo.javaClass.getDeclaredField("phone_prefix").apply { isAccessible = true }.get(identityInfo)?:""
 
                     sharedPreferences.apply {
-                        edit().putString("username",username.toString()).apply()
-                        edit().putString("avatar_url",avatar_url.toString()).apply()
-                        edit().putString("create_at",create_at.toString()).apply()
-                        edit().putString("id",id.toString()).apply()
-                        edit().putString("phone",phone.toString()).apply()
-                        edit().putString("phone_prefix",phone_prefix.toString()).apply()
+                        edit().putString(KEY_USERNAME, username.toString()).apply()
+                        edit().putString(KEY_AVATAR_URL, avatar_url.toString()).apply()
+                        edit().putString(KEY_CREATE_AT, create_at.toString()).apply()
+                        edit().putString(KEY_USER_ID, id.toString()).apply()
+                        edit().putString(KEY_PHONE, phone.toString()).apply()
+                        edit().putString(KEY_PHONE_PREFIX, phone_prefix.toString()).apply()
                     }
 
                 }

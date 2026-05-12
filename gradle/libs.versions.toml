@@ -2,6 +2,7 @@
 agp = "9.2.0"
 api = "82"
 biometricKtx = "1.2.0-alpha05"
+coil = "3.2.0"
 ezxhelper = "3.0.1"
 kotlin = "2.2.20"
 coreKtx = "1.17.0"
@@ -21,6 +22,8 @@ firebaseDatabaseKtx = "21.0.0"
 hyperfocusapi = "2.0"
 
 [libraries]
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 androidx-biometric-ktx = { module = "androidx.biometric:biometric-ktx", version.ref = "biometricKtx" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 shadow-gradle-plugin = { module = "com.gradleup.shadow:shadow-gradle-plugin", version.ref = "shadowGradlePlugin" }

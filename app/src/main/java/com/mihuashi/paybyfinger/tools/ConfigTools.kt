@@ -66,4 +66,23 @@ object ConfigTools {
     /** 基础 Fragment 类名 */
     val BASE_FRAGMENT_CLASS =
         "com.qixin.mihuas.core.mvvm.v.BaseFragment"
+
+    // ==================== 用户信息 Keys ====================
+
+    val KEY_USERNAME = "username"
+    val KEY_AVATAR_URL = "avatar_url"
+    val KEY_CREATE_AT = "create_at"
+    val KEY_USER_ID = "id"
+    val KEY_PHONE = "phone"
+    val KEY_PHONE_PREFIX = "phone_prefix"
+
+    // ==================== 延迟配置 ====================
+
+    /** 随机延迟最小值 (ms) */
+    val KEY_DELAY_MIN = "delay_min"
+    val DEFAULT_DELAY_MIN = 300f
+
+    /** 随机延迟最大值 (ms) */
+    val KEY_DELAY_MAX = "delay_max"
+    val DEFAULT_DELAY_MAX = 800f
 }

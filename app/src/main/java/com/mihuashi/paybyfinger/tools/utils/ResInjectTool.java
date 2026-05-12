@@ -7,6 +7,7 @@ import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.content.res.loader.ResourcesLoader;
 import android.content.res.loader.ResourcesProvider;
+import android.util.Log;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,7 +20,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
-import com.github.kyuubiran.ezxhelper.Log;
 
 import java.io.File;
 import java.io.IOException;
@@ -117,7 +117,7 @@ public class ResInjectTool {
                 loader.addProvider(provider);
                 mResourcesLoader = loader;
             } catch (IOException e) {
-                Log.e("Failed to inject res! debug: above api 30.", e);
+                Log.e("Failed to inject res! debug: above api 30.", "",e);
                 return false;
             }
         }
@@ -145,7 +145,7 @@ public class ResInjectTool {
                 // fallback to below API 30
                 return injectResBelowApi30(resources);
             } else {
-                Log.e("Failed to add loaders!", e);
+                Log.e("Failed to add loaders!", "",e);
                 return false;
             }
         }
@@ -163,11 +163,11 @@ public class ResInjectTool {
             addAssetPath.setAccessible(true);
             Integer cookie = (Integer) addAssetPath.invoke(assets, mModulePath);
             if (cookie == null || cookie == 0) {
-                Log.w("Method 'addAssetPath' result 0, maybe inject res failed!", null);
+                Log.w("Method 'addAssetPath' result 0, maybe inject res failed!","", null);
                 return false;
             }
         } catch (Throwable e) {
-            Log.e("Failed to inject res! debug: below api 30.", e);
+            Log.e("Failed to inject res! debug: below api 30.", "",e);
             return false;
         }
         return true;
@@ -209,7 +209,7 @@ public class ResInjectTool {
             applyHooks();
             mReplacements.put(pkg + ":" + type + "/" + name, new Pair<>(ReplacementType.ID, replacementResId));
         } catch (Throwable t) {
-            Log.e("Failed to set res replacement!", t);
+            Log.e("Failed to set res replacement!", "",t);
         }
     }
 
@@ -221,7 +221,7 @@ public class ResInjectTool {
             applyHooks();
             mReplacements.put(pkg + ":" + type + "/" + name, new Pair<>(ReplacementType.DENSITY, replacementResValue));
         } catch (Throwable t) {
-            Log.e("Failed to set density res replacement!", t);
+            Log.e("Failed to set density res replacement!","", t);
         }
     }
 
@@ -233,7 +233,7 @@ public class ResInjectTool {
             applyHooks();
             mReplacements.put(pkg + ":" + type + "/" + name, new Pair<>(ReplacementType.OBJECT, replacementResValue));
         } catch (Throwable t) {
-            Log.e("Failed to set object res replacement!", t);
+            Log.e("Failed to set object res replacement!", "",t);
         }
     }
 
@@ -456,7 +456,7 @@ public class ResInjectTool {
             try {
                 return invokeMethod(flag);
             } catch (Throwable e) {
-                Log.e("", e);
+                Log.e("", "",e);
                 return null;
             }
         }
