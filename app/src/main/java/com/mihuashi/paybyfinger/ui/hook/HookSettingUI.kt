@@ -154,6 +154,29 @@ fun HookSettingUI(context: Context) {
                 Card(modifier = Modifier
                     .padding(start = 8.dp, end = 8.dp))
                 {
+                    BasicComponent(
+                        title = "总开关",
+                        endActions = {
+                            Switch(
+                                checked = allSwitch,
+                                onCheckedChange = {
+                                    allSwitch = it
+                                    sharedPreferences.edit {
+                                        putBoolean(KEY_ALL_SWITCH, it)
+                                    }
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+            item {
+                SmallTitle(
+                    text = "当前用户信息"
+                )
+                Card(modifier = Modifier
+                    .padding(start = 8.dp, end = 8.dp))
+                {
                     val username = sharedPreferences.getString(KEY_USERNAME, "未设置用户名")
                     val avatarUrl = sharedPreferences.getString(KEY_AVATAR_URL, null)
                     val createAt = sharedPreferences.getString(KEY_CREATE_AT, "")
@@ -167,7 +190,6 @@ fun HookSettingUI(context: Context) {
                                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                         }.getOrNull() ?: "时间解析失败"
                     }
-
                     BasicComponent {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (!avatarUrl.isNullOrEmpty() && avatarUrl != "null") {
@@ -202,26 +224,6 @@ fun HookSettingUI(context: Context) {
                     }
                 }
 
-            }
-            item {
-                Card(modifier = Modifier
-                    .padding(start = 8.dp, end = 8.dp))
-                {
-                    BasicComponent(
-                        title = "总开关",
-                        endActions = {
-                            Switch(
-                                checked = allSwitch,
-                                onCheckedChange = {
-                                    allSwitch = it
-                                    sharedPreferences.edit {
-                                        putBoolean(KEY_ALL_SWITCH, it)
-                                    }
-                                }
-                            )
-                        }
-                    )
-                }
             }
             item {
                 Card(modifier = Modifier
