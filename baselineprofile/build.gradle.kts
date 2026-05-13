@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ghhccghk.baselineprofile"
+    namespace = "com.ghhccghk.baselineProfile"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
