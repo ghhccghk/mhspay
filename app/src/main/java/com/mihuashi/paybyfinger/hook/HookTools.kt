@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.graphics.drawable.Icon
+import android.os.Bundle
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.text.InputFilter
@@ -26,6 +27,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.hyperfocus.api.FocusApi
 import com.hyperfocus.api.IslandApi
 import io.github.kyuubiran.ezxhelper.android.logging.Logger
+import org.json.JSONObject
 import java.security.KeyStore
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -377,69 +379,145 @@ class HookTool {
             dialog.show()
         }
 
+        /**
+         * 小米澎湃焦点通知构建器 (高度自定义 DSL)
+         */
+        class FocusNotificationBuilder(private val context: Context) {
+            var ticker: String = ""
+            var title: String? = "付款通知"
+            var content: String? = ""
+            var picticker: Icon? = null
+            var pictickerdark: Icon? = null
+
+            // FocusApi 核心控制
+            var enableFloat: Boolean = true      // 是否弹出横幅
+            var timeout: Int = 280               // 超时时间(秒)
+            var isShowNotification: Boolean = true // 是否在通知栏显示
+            var islandFirstFloat: Boolean = true // 小岛是否首次弹出
+
+            // 内部存储的 API 对象
+            private var bigIslandArea: JSONObject? = null
+            private var smallIslandArea: JSONObject? = null
+            private var islandTemplate: JSONObject? = null
+            var focusbundle: Bundle? = null
+
+            /**
+             * 配置大岛区域 (展开态)
+             * @param leftPic 左侧图标路径或 KEY
+             * @param leftTitle 左侧标题
+             * @param rightText 右侧文字内容
+             * @param type 类型 (通常 1 为左, 2 为右)
+             */
+            fun bigIsland(
+                leftPic: String = "miui.focus.pic_ticker",
+                leftTitle: String = title ?: "",
+                rightText: String = content ?: "",
+                type: Int = 2
+            ) {
+                bigIslandArea = IslandApi.bigIslandArea(
+                    imageTextInfoLeft = IslandApi.imageTextInfo(
+                        picInfo = IslandApi.picInfo(pic = leftPic),
+                        textInfo = IslandApi.TextInfo(title = leftTitle)
+                    ),
+                    imageTextInfoRight = IslandApi.imageTextInfo(
+                        textInfo = IslandApi.TextInfo(title = rightText),
+                        type = type
+                    )
+                )
+            }
+
+            /**
+             * 配置小岛区域 (胶囊态)
+             * @param pic 小岛图标路径或 KEY
+             */
+            fun smallIsland(pic: String = "miui.focus.pic_ticker") {
+                smallIslandArea = IslandApi.SmallIslandArea(
+                    picInfo = IslandApi.picInfo(pic = pic)
+                )
+            }
+
+            /**
+             * 高级配置：直接设置小岛模板参数
+             */
+            fun islandTemplate(block: () -> JSONObject) {
+                islandTemplate = block()
+            }
+
+            @SuppressLint("NotificationPermission")
+            fun buildAndNotify(
+                notificationId: Int = CHANNEL_ID.hashCode(),
+                channelId: String = CHANNEL_ID
+            ) {
+                createNotificationChannel(context, channelId)
+
+                val launchIntent =
+                    context.packageManager.getLaunchIntentForPackage(context.packageName)
+                val appIcon = context.packageManager.getActivityIcon(launchIntent!!).toBitmap()
+                val finalPicticker = picticker ?: Icon.createWithBitmap(appIcon)
+
+                // 如果没配置大/小岛，提供默认配置
+                if (bigIslandArea == null) bigIsland()
+                if (smallIslandArea == null) smallIsland()
+
+                val finalIsland = islandTemplate ?: IslandApi.IslandTemplate(
+                    bigIslandArea = bigIslandArea,
+                    smallIslandArea = smallIslandArea,
+                    islandPriority = 2,
+                    islandTimeout = timeout
+                )
+
+                val bundle = FocusApi.sendFocus(
+                    title = title,
+                    content = content,
+                    ticker = ticker.ifEmpty { content ?: "" },
+                    picticker = finalPicticker,
+                    pictickerdark = pictickerdark,
+                    island = finalIsland,
+                    enableFloat = enableFloat,
+                    timeout = timeout,
+                    isShowNotification = isShowNotification,
+                    islandFirstFloat = islandFirstFloat
+                )
+
+                val builder = NotificationCompat.Builder(context, channelId)
+                    .setSmallIcon(IconCompat.createFromIcon(context, finalPicticker)!!)
+                    .setContentTitle(title)
+                    .setContentText(content)
+                    .setTicker(ticker)
+                    .setOngoing(true)
+                    .setPriority(NotificationCompat.PRIORITY_MIN)
+                    .setContentIntent(
+                        PendingIntent.getActivity(
+                            context, 0, launchIntent, PendingIntent.FLAG_MUTABLE
+                        )
+                    )
+                    .addExtras(bundle)
+
+                val manager =
+                    context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                manager.notify(notificationId, if (focusbundle != null ) builder.addExtras(focusbundle).build() else builder.build()) // 只有首次才显示系统通知，后续更新只更新小岛
+            }
+        }
+
         /** 发送小米澎湃焦点通知
          * @param text 为通知内容
          * @param context 为应用的context */
         @SuppressLint("NotificationPermission")
         fun sendNotification(text: String, context: Context) {
-            //  logE("sendNotification: " + context.packageName + ": " + text)
-            createNotificationChannel(context)
-            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            val bitmap = context.packageManager.getActivityIcon(launchIntent!!).toBitmap()
-            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            val focusTextViewList = mutableListOf<TextView>()
-            builder.setContentTitle(text)
-            focusTextViewList.forEach {
-                it.text = text
-            }
-            builder.setSmallIcon(IconCompat.createWithBitmap(bitmap))
-            builder.setTicker(text).setPriority(NotificationCompat.PRIORITY_MIN)
-            builder.setOngoing(true) // 设置为常驻通知
-            builder.setContentIntent(
-                PendingIntent.getActivity(
-                    context, 0, launchIntent, PendingIntent.FLAG_MUTABLE
-                )
-            )
-            val bigIslandArea = IslandApi.bigIslandArea(
-                imageTextInfoLeft = IslandApi.imageTextInfo(
-                    picInfo = IslandApi.picInfo(
-                        pic = "miui.focus.pic_ticker"
-                    ),
-                    textInfo = IslandApi.TextInfo(title = "付款通知")
-                ),
-                imageTextInfoRight = IslandApi.imageTextInfo(
-                    textInfo = IslandApi.TextInfo(title = text),
-                    type = 2
-                )
-            )
-            val island = IslandApi.IslandTemplate(
-                bigIslandArea = bigIslandArea,
-                smallIslandArea = IslandApi.SmallIslandArea(
-                    picInfo = IslandApi.picInfo(
-                        pic = "miui.focus.pic_ticker"
-                    )
-                )
-            )
-            val bundle = FocusApi.sendFocus(
-                title = "付款通知",
-                ticker = text,
-                island = island,
-                picticker = Icon.createWithBitmap(bitmap)
-            )
-            builder.addExtras(bundle)
-            val notification = builder.build()
-            (context.getSystemService("notification") as NotificationManager).notify(
-                CHANNEL_ID.hashCode(), notification
-            )
+            FocusNotificationBuilder(context).apply {
+                content = text
+                ticker = "支付通知: $text"
+                bigIsland(rightText = text)
+            }.buildAndNotify()
         }
 
         /** 创建通知渠道
          * @param context 为应用的context*/
-        private fun createNotificationChannel(context: Context) {
+        private fun createNotificationChannel(context: Context, channelId: String = CHANNEL_ID) {
             val notificationManager =
-                context.getSystemService("notification") as NotificationManager
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val notificationChannel = NotificationChannel(
-                CHANNEL_ID, "mhspay", NotificationManager.IMPORTANCE_MIN
+                channelId, "mhspay", NotificationManager.IMPORTANCE_MIN
             )
             notificationChannel.setSound(null, null)
             notificationManager.createNotificationChannel(notificationChannel)

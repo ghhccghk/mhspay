@@ -21,6 +21,7 @@ class MainHook : IXposedHookLoadPackage, IXposedHookZygoteInit /* Optional */ {
             // Init EzXHelper
             EzXposed.initHandleLoadPackage(lpparam)
             Logger.tag = TAG
+            Logger.logLevel = if (BuildConfig.DEBUG) Logger.LogLevel.DEBUG else Logger.LogLevel.INFO
             LogTool.init("米画师hook", { BuildConfig.DEBUG })
             // Init hooks
             initHooks(Hook)
@@ -29,6 +30,7 @@ class MainHook : IXposedHookLoadPackage, IXposedHookZygoteInit /* Optional */ {
             // Init EzXHelper
             EzXposed.initHandleLoadPackage(lpparam)
             Logger.tag = TAG
+            Logger.logLevel = if (BuildConfig.DEBUG) Logger.LogLevel.DEBUG else Logger.LogLevel.INFO
             LogTool.init("米画师hook", { BuildConfig.DEBUG })
             // Init hooks
             initHooks(Systemui)

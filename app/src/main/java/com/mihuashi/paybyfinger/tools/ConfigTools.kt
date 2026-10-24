@@ -48,12 +48,13 @@ object ConfigTools {
    val BIOMETRIC_ACTIVITY_CLASS =
         "com.mihuashi.paybyfinger.ui.activity.BiometricAuthActivity"
 
-    /** 本模块的包名 */
-    val MODULE_PACKAGE = "com.mihuashi.paybyfinger"
-
     /** 米画师密码输入对话框类名 */
      val INPUT_PASSWORD_DIALOG_CLASS =
         "com.qixin.mihuas.modules.account.dialog.InputPayingPasswordDialog"
+
+
+    /** 支付确认界面 */
+    val StallPurchaseFragment_Class = "com.qixin.mihuas.module.stall.detail.fragment.StallPurchaseFragment"
 
     /** 设置页面 Fragment 类名 */
      val SETTING_FRAGMENT_CLASS =
@@ -68,12 +69,17 @@ object ConfigTools {
         "com.qixin.mihuas.core.mvvm.v.BaseFragment"
 
     // ==================== 用户信息 Keys ====================
-
+    /** 用户名 */
     val KEY_USERNAME = "username"
+    /** 头像URL */
     val KEY_AVATAR_URL = "avatar_url"
+    /** 注册时间 */
     val KEY_CREATE_AT = "create_at"
+    /** 用户ID */
     val KEY_USER_ID = "id"
+    /** 电话号码 */
     val KEY_PHONE = "phone"
+    /** 电话号码区号*/
     val KEY_PHONE_PREFIX = "phone_prefix"
 
     // ==================== 延迟配置 ====================

@@ -8,11 +8,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
@@ -28,8 +33,20 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cn.xiaowine.xkt.Tool.isNotNull
+import coil3.ImageLoader
+import coil3.asDrawable
+import coil3.request.ErrorResult
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.size.Scale
+import coil3.toBitmap
+import com.hyperfocus.api.FocusApi
+import com.hyperfocus.api.IslandApi
 import com.mihuashi.paybyfinger.BaseHook
 import com.mihuashi.paybyfinger.BuildConfig
+import com.mihuashi.paybyfinger.hook.HookTool.Companion.FocusNotificationBuilder
+import com.mihuashi.paybyfinger.hook.HookTool.Companion.cancelNotification
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.convertTimestampToTime
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.decryptData
 import com.mihuashi.paybyfinger.hook.HookTool.Companion.findParentByChild
@@ -52,8 +69,8 @@ import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_PHONE_PREFIX
 import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_USER_ID
 import com.mihuashi.paybyfinger.tools.ConfigTools.KEY_USERNAME
 import com.mihuashi.paybyfinger.tools.ConfigTools.MINE_SETTING_ITEM_VIEW_CLASS
-import com.mihuashi.paybyfinger.tools.ConfigTools.MODULE_PACKAGE
 import com.mihuashi.paybyfinger.tools.ConfigTools.PREF_NAME
+import com.mihuashi.paybyfinger.tools.ConfigTools.StallPurchaseFragment_Class
 import com.mihuashi.paybyfinger.tools.ConfigTools.SETTING_FRAGMENT_CLASS
 import com.mihuashi.paybyfinger.tools.ConfigTools.xConfig
 import com.mihuashi.paybyfinger.tools.DialogLifecycleOwner
@@ -68,6 +85,12 @@ import io.github.kyuubiran.ezxhelper.core.finder.MethodFinder.`-Static`.methodFi
 import io.github.kyuubiran.ezxhelper.core.util.ClassUtil.loadClass
 import io.github.kyuubiran.ezxhelper.core.util.ClassUtil.loadClassOrNull
 import io.github.kyuubiran.ezxhelper.xposed.dsl.HookFactory.`-Static`.createHook
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
@@ -250,6 +273,8 @@ object Hook : BaseHook() {
         sharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
 
         val passwordDialogClass = loadClass(INPUT_PASSWORD_DIALOG_CLASS, classLoader)
+        val paymentConfirmFragmentClass = loadClass(StallPurchaseFragment_Class, classLoader)
+        val MineIdentityView = loadClass("com.qixin.mihuas.module.main.mine.widget.MineIdentityView", classLoader)
 
         // ---- Hook 1：拦截设置页面，注入"指纹认证"入口 ----
         loadClass(BASE_FRAGMENT_CLASS, classLoader)
@@ -332,8 +357,6 @@ object Hook : BaseHook() {
                 }
             }
 
-        val MineIdentityView = loadClass("com.qixin.mihuas.module.main.mine.widget.MineIdentityView", classLoader)
-
         MineIdentityView
             .methodFinder()
             .first { name == "setMineIdentity" }
@@ -364,6 +387,254 @@ object Hook : BaseHook() {
 
                 }
             }
+
+
+        paymentConfirmFragmentClass.methodFinder()
+            .first{ name == "initArguments" }
+            .createHook {
+                after { param ->
+                    val stall = XposedHelpers.getObjectField(
+                        param.thisObject,
+                        "stall"
+                    )
+                    val cover_url = getPath(stall, "cover_url")
+                    Logger.i("cover_url = $cover_url")
+                    val owner_avatar_url = getPath(stall, "owner.avatar_url")
+                    Logger.i("owner_avatar_url = $owner_avatar_url")
+                    val avatar_frame_url = getPath(stall, "owner.avatar_frame_url")
+                    Logger.i("avatar_frame_url = $avatar_frame_url")
+
+                    CoroutineScope(Dispatchers.Main).launch {
+
+                        runCatching {
+                            val coverDeferred = async {
+                                context.loadBitmap(cover_url.toString())
+                            }
+
+                            val avatarDeferred = async {
+                                context.loadBitmap(owner_avatar_url.toString())
+                            }
+
+                            val coverBitmap = coverDeferred.await()
+                            val avatarBitmap = avatarDeferred.await()
+
+                            // 两张图都完成
+                            test(stall, coverBitmap, avatarBitmap, context)
+                        }.onFailure {
+                            Logger.e("图片加载失败 ${it.message}")
+                        }
+                    }
+
+
+                }
+
+            }
+
+        paymentConfirmFragmentClass.methodFinder()
+            .first(){ name == "onDestroy" }
+            .createHook {
+                after {
+                    cancelNotification(context)
+                }
+            }
+    }
+
+    fun test(stall: Any, coverBitmap: Bitmap?, avatarBitmap: Bitmap?,context: Context) {
+        runCatching {
+            Logger.i("stall $stall")
+            val detail = getPath(stall, "detail")
+            Logger.i("detail  = $detail ")
+            val name = getPath(stall, "name")
+            Logger.i("name = $name")
+            val price = getPath(stall, "price")
+            Logger.i("price = $price 元")
+            val public_type = getPath(stall, "public_type")
+            Logger.i("public_type = $public_type")
+            val sales = getPath(stall, "sales")
+            Logger.i("已售：$sales")
+            val painter_complete_rate = getPath(stall, "painter_complete_rate")
+            Logger.i("需求完成率 $painter_complete_rate %")
+            val painter_ontime_rate = getPath(stall, "painter_ontime_rate")
+            Logger.i("准时交稿率 = $painter_ontime_rate %")
+            val painter_stall_order_rate = getPath(stall, "painter_stall_order_rate")
+            Logger.i("平均接单时长 = $painter_stall_order_rate %")
+            val quick_stall_deadline_days = getPath(stall, "quick_stall_deadline_days")
+            Logger.i("交稿时长 = $quick_stall_deadline_days 天")
+            val id = getPath(stall, "id")
+            val owner_name = getPath(stall, "owner.name")
+            Logger.i("owner_name = $owner_name")
+
+            val picProfiles = FocusApi.addpics("miui.focus.pro", Icon.createWithBitmap(coverBitmap))
+            val pics = Bundle()
+            pics.putAll(picProfiles)
+
+            val chatinfo = FocusApi.chatinfo(
+                picProfile = "miui.focus.pro", title = name.toString(), content = detail.toString(),
+                colortitle = "#FFFFFF", colorcontent = "#FFFFFF"
+            )
+
+            val hintInfo = FocusApi.hintInfo(
+                type = 1,
+                content = "已售：$sales",
+                colortitle = "#FFFFFF",
+                title = "$price 元",
+                colorContent = "#FFFFFF",
+                actionInfo = JSONObject()
+            )
+            val shareInfo = IslandApi.shareData(
+                title = "${name}",
+                content = "$owner_name",
+                shareContent = "https://www.mihuashi.com/stalls/$id",
+                pic = "miui.focus.pro"
+            )
+
+            val pic = IslandApi.picInfo(
+                autoplay = true,
+                effectColor = "#33B5E5",
+                effectSrc = "inEffectSrc",
+                pic = "miui.focus.pro"
+            )
+
+            val textInfo = IslandApi.TextInfo(
+                turnAnim = false,
+                showHighlightColor = false,
+                title = "${ name}"
+            )
+
+            val textInfoa = IslandApi.TextInfo(
+                isTitleDigit = false,
+                turnAnim = false,
+                showHighlightColor = true,
+                title = "已售：$sales"
+            )
+            val a = IslandApi.imageTextInfo(
+                textInfo = textInfo,
+                type = 1,
+                picInfo = pic
+            )
+
+            val b = IslandApi.imageTextInfo(
+                type = 2,
+                textInfo = textInfoa,
+            )
+
+            val bigIslandArea = IslandApi.bigIslandArea(
+                imageTextInfoLeft = a,
+                imageTextInfoRight = b
+            )
+            val smallIslandArea = IslandApi.SmallIslandArea(
+                combinePicInfo = IslandApi.combinePicInfo(
+                    picInfo = pic,
+                    smallPicInfo = JSONObject(),
+                    progressInfo = IslandApi.progressInfo(
+                        colorReach = "#FA5FFF",
+                        colorUnReach = "#FFFABC",
+                        progress = 33
+                    )
+                )
+            )
+
+            val islandTemplate = IslandApi.IslandTemplate(
+                highlightColor = "#FF47FF",
+                bigIslandArea = bigIslandArea,
+                smallIslandArea = smallIslandArea,
+                shareData = shareInfo,
+                expandedTime = 300
+            )
+
+            val api = FocusApi.sendFocus(
+                title = "莱卡恩",
+                island = islandTemplate,
+                cancel = false,
+                chatinfo = chatinfo,
+                addpics = pics,
+                enableFloat = true,
+                hintInfo = hintInfo,
+                ticker = "绳匠阁下，冒昧的打扰您了",
+                picbg = Icon.createWithBitmap(coverBitmap),
+                picticker = Icon.createWithBitmap(avatarBitmap),
+                picbgtype = 2,
+            )
+
+            FocusNotificationBuilder(context).apply {
+                focusbundle = api
+            }.buildAndNotify()
+        }.onFailure {
+
+            it.printStackTrace()
+
+            Logger.e("加载图片失败: ${it.message}")
+
+        }.getOrNull()
+
+
+    }
+
+    fun getPath(obj: Any, path: String): Any? {
+        var current: Any? = obj
+
+        path.split(".").forEach { fieldName ->
+
+            if (current == null) return null
+
+            current = XposedHelpers.getObjectField(current, fieldName)
+        }
+
+        return current
+    }
+
+    fun dumpFields(obj: Any) {
+
+        var clazz: Class<*>? = obj.javaClass
+
+        while (clazz != null) {
+
+            Logger.i("===== ${clazz.name} =====")
+
+            clazz.declaredFields.forEach { field ->
+
+                try {
+
+                    field.isAccessible = true
+
+                    val value = field.get(obj)
+
+                    Logger.i(
+                        "${field.name} -> ${value?.javaClass?.name} = $value"
+                    )
+
+                } catch (e: Throwable) {
+                }
+            }
+
+            clazz = clazz.superclass
+        }
+    }
+
+    fun dumpLiveData(viewModel: Any) {
+
+        viewModel.javaClass.declaredFields.forEach { field ->
+
+            try {
+
+                field.isAccessible = true
+
+                val obj = field.get(viewModel)
+
+                if (obj is androidx.lifecycle.LiveData<*>) {
+
+                    val value = obj.value
+
+                    Logger.i("""
+FIELD = ${field.name}
+VALUE = $value
+VALUE_CLASS = ${value?.javaClass?.name}
+                """.trimIndent())
+                }
+
+            } catch (e: Throwable) {
+            }
+        }
     }
 
 
@@ -379,7 +650,7 @@ object Hook : BaseHook() {
             putExtra("rmb", paymentAmount)
             putExtra("paytime", paymentTimestamp)
             setComponent(
-                ComponentName(MODULE_PACKAGE, BIOMETRIC_ACTIVITY_CLASS)
+                ComponentName(BuildConfig.APPLICATION_ID, BIOMETRIC_ACTIVITY_CLASS)
             )
         }
     }
@@ -520,6 +791,43 @@ object Hook : BaseHook() {
             show()
         }
 
+    }
+
+    fun Context.loadBitmapSync(url: String): Bitmap? {
+        return runBlocking {
+            loadBitmap(url)
+        }
+    }
+
+    suspend fun Context.loadBitmap(
+        url: String,
+        size: Int = 512
+    ): Bitmap? {
+
+        return runCatching {
+
+            val loader = ImageLoader(this)
+
+            val request = ImageRequest.Builder(this)
+                .data(url)
+                .size(size)
+                .allowHardware(false)
+                .build()
+
+            val result = loader.execute(request)
+
+            if (result !is SuccessResult) {
+                return null
+            }
+
+            result.image.toBitmap()
+
+        }.getOrElse {
+
+            Logger.e(it.stackTraceToString())
+
+            null
+        }
     }
 
 }
